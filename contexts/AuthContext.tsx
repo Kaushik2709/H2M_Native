@@ -6,9 +6,8 @@ import React, {
   ReactNode,
   useCallback,
 } from "react";
-import { authService } from "../services/auth.service";
+import { authService, type AuthResponse, type User } from "../services/auth.service";
 import { onAuthError } from "../services/api.client";
-import { User, AuthResponse } from "../types";
 
 interface AuthContextType {
   user: User | null;

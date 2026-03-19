@@ -1,6 +1,8 @@
-import { API_BASE } from '@/config/api';
-import { useRouter } from 'expo-router';
-import React, { useEffect, useMemo, useState } from 'react';
+import api from "@/services/api.client";
+import { Colors } from "@/constants/theme";
+import { LinearGradient } from "expo-linear-gradient";
+import { useRouter } from "expo-router";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   View,
   Text,
@@ -10,8 +12,14 @@ import {
   Image,
   FlatList,
   RefreshControl,
-  ActivityIndicator,
 } from 'react-native';
+import { SafeAreaView } from "react-native-safe-area-context";
+import { Badge } from "@/components/ui/Badge";
+import { Button } from "@/components/ui/Button";
+import { Card } from "@/components/ui/Card";
+import { EmptyState } from "@/components/ui/EmptyState";
+import { ErrorScreen } from "@/components/ui/ErrorScreen";
+import { LoadingScreen } from "@/components/ui/LoadingScreen";
 
 interface Bike {
   id: string;
@@ -31,6 +39,7 @@ const Bikes = () => {
   const [selectedFilter, setSelectedFilter] = useState('all');
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [bikes, setBikes] = useState<Bike[]>([]);
   const [originalBikes, setOriginalBikes] = useState<Bike[]>([]);
   const router = useRouter()
@@ -38,11 +47,9 @@ const Bikes = () => {
   const fetchVehicles = async () => {
     try {
       setLoading(true);
-      const res = await fetch(`${API_BASE}/api/vehicles`);
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-
-      const json = await res.json();
-      const vehicleData = json.data.items || [];
+      setError(null);
+      const payload = await api.get<any>("/api/vehicles");
+      const vehicleData = payload?.data?.items || payload?.items || payload || [];
 
       // Keep only bike entries (flexible checks for different API shapes)
       const bikesOnly = vehicleData.filter((v: any) => {
@@ -60,6 +67,7 @@ const Bikes = () => {
       setOriginalBikes(bikesOnly);
     } catch (err) {
       console.error("Fetch vehicles failed:", err);
+      setError((err as any)?.message || "Unable to reach backend");
     } finally {
       setLoading(false);
     }
@@ -126,56 +134,54 @@ const filteredBikes = useMemo(() => {
 
 
   const renderBikeCard = ({ item }: { item: Bike }) => (
-    <TouchableOpacity
-      className="bg-white rounded-xl mb-4 shadow-sm overflow-hidden active:opacity-70"
-      onPress={() => router.push(`/components/BikeDetails?id=${item.id}`)}
-    >
-      {/* Image */}
-      <View className="relative">
-        <Image
-          source={{ uri: item.images[0] }}
-          className="w-full h-48"
-          resizeMode="cover"
-        />
-        {item.featured && (
-          <View className="absolute top-3 left-3 bg-yellow-400 px-3 py-1 rounded-full">
-            <Text className="text-xs font-bold text-gray-900">⭐ Featured</Text>
-          </View>
-        )}
-        {item.negotiable && (
-          <View className="absolute top-3 right-3 bg-green-500 px-3 py-1 rounded-full">
-            <Text className="text-xs font-bold text-white">Negotiable</Text>
-          </View>
-        )}
-        <TouchableOpacity className="absolute bottom-3 right-3 bg-white/90 p-2 rounded-full">
-          <Text className="text-base">❤️</Text>
-        </TouchableOpacity>
-      </View>
+    <Card className="p-0 mb-4" variant="default">
+      <TouchableOpacity
+        className="overflow-hidden rounded-2xl"
+        onPress={() => router.push(`/components/BikeDetails?id=${item.id}`)}
+        activeOpacity={0.9}
+      >
+        <View className="relative">
+          <Image
+            source={{ uri: item.images?.[0] }}
+            className="w-full h-52"
+            resizeMode="cover"
+          />
 
-      {/* Content */}
-      <View className="p-4">
-        <Text className="text-lg font-bold text-gray-900 mb-1">
-          {item.title}
-        </Text>
-        <Text className="text-sm text-gray-500 mb-3">
-          {item.year} • {formatKM(item.kilometersDriven)} • {item.fuelType}
-        </Text>
-
-        <View className="flex-row justify-between items-center">
-          <View>
-            <Text className="text-2xl font-bold text-blue-600">
-              {formatPrice(item.price)}
-            </Text>
-            <View className="flex-row items-center mt-1">
-              <Text className="text-xs text-gray-500">📍 {item.location}</Text>
-            </View>
+          <View className="absolute top-3 left-3 flex-row" style={{ gap: 8 }}>
+            {item.featured && <Badge label="FEATURED" tone="warning" />}
+            {item.negotiable && <Badge label="NEGOTIABLE" tone="success" />}
           </View>
-          <TouchableOpacity className="bg-blue-500 px-4 py-2 rounded-lg">
-            <Text className="text-white font-semibold text-sm">View Details</Text>
-          </TouchableOpacity>
+
+          <View className="absolute bottom-3 right-3 bg-white/90 px-3 py-2 rounded-full">
+            <Text className="text-xs font-extrabold text-gray-900">❤️ SAVE</Text>
+          </View>
         </View>
-      </View>
-    </TouchableOpacity>
+
+        <View className="p-4">
+          <Text className="text-lg font-extrabold text-gray-900" numberOfLines={1}>
+            {item.title}
+          </Text>
+          <Text className="text-sm text-gray-500 mt-1" numberOfLines={1}>
+            {item.year} • {formatKM(item.kilometersDriven)} • {item.fuelType}
+          </Text>
+
+          <View className="flex-row justify-between items-end mt-4">
+            <View>
+              <Text className="text-2xl font-extrabold text-indigo-700">
+                {formatPrice(item.price)}
+              </Text>
+              <Text className="text-xs text-gray-500 mt-1">📍 {item.location}</Text>
+            </View>
+            <Button
+              title="View"
+              size="sm"
+              rightIcon="arrow-forward"
+              onPress={() => router.push(`/components/BikeDetails?id=${item.id}`)}
+            />
+          </View>
+        </View>
+      </TouchableOpacity>
+    </Card>
   );
 
   const renderHeader = () => (
@@ -237,51 +243,61 @@ const filteredBikes = useMemo(() => {
   );
 
   if (loading) {
+    return <LoadingScreen title="Loading bikes" subtitle="Fetching fresh listings" />;
+  }
+
+  if (error) {
     return (
-      <View className="flex-1 bg-gray-50 items-center justify-center">
-        <ActivityIndicator size="large" color="#3B82F6" />
-        <Text className="text-gray-600 mt-4">Loading bikes...</Text>
-      </View>
+      <ErrorScreen
+        title="Unable to load bikes"
+        description={`${error}. Check your LAN IP / API base and try again.`}
+        onRetry={fetchVehicles}
+      />
     );
   }
 
   return (
-    <View className="flex-1 bg-gray-50">
+    <SafeAreaView className="flex-1 bg-gray-50" edges={["top"]}>
       {/* Header */}
-      <View className="bg-blue-500 pt-12 pb-6 px-5">
+      <LinearGradient
+        colors={[Colors.primary[800], Colors.primary[600]]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        className="pt-10 pb-6 px-5 rounded-b-3xl"
+      >
         <View className="flex-row justify-between items-center">
-          <View>
-            <Text className="text-white text-2xl font-bold mb-1">
-              🏍️ Bikes Marketplace
+          <View className="flex-1">
+            <Text className="text-white text-3xl font-extrabold mb-1">
+              Bikes
             </Text>
-            <Text className="text-blue-100 text-sm">
-              Find your perfect ride
+            <Text className="text-white/80 text-sm">
+              Bold listings, verified sellers, instant test-drives.
             </Text>
           </View>
-          <TouchableOpacity className="bg-white/20 p-2 rounded-full">
-            <Text className="text-white text-xl">🔔</Text>
-          </TouchableOpacity>
+          <View className="px-3 py-2 rounded-full bg-white/10 border border-white/20">
+            <Text className="text-white text-xs font-extrabold tracking-widest">H2M</Text>
+          </View>
         </View>
-      </View>
+      </LinearGradient>
 
       {/* Quick Stats */}
-      <View className="bg-white mx-5 -mt-4 rounded-xl p-4 shadow-sm flex-row justify-around mb-5">
+      <View className="bg-white mx-5 -mt-5 rounded-3xl p-5 shadow-sm flex-row justify-around mb-5 border border-gray-100">
         <View className="items-center">
-          <Text className="text-xl font-bold text-gray-900">
+          <Text className="text-xl font-extrabold text-gray-900">
             {originalBikes.length}
           </Text>
           <Text className="text-xs text-gray-500 mt-1">Total Bikes</Text>
         </View>
         <View className="w-px bg-gray-200" />
         <View className="items-center">
-          <Text className="text-xl font-bold text-gray-900">
+          <Text className="text-xl font-extrabold text-gray-900">
             {originalBikes.filter((b) => b.featured).length}
           </Text>
           <Text className="text-xs text-gray-500 mt-1">Featured</Text>
         </View>
         <View className="w-px bg-gray-200" />
         <View className="items-center">
-          <Text className="text-xl font-bold text-gray-900">
+          <Text className="text-xl font-extrabold text-gray-900">
             {originalBikes.filter((b) => b.year >= 2023).length}
           </Text>
           <Text className="text-xs text-gray-500 mt-1">Latest</Text>
@@ -300,14 +316,12 @@ const filteredBikes = useMemo(() => {
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }
         ListEmptyComponent={
-          <View className="items-center justify-center py-20">
-            <Text className="text-6xl mb-4">🏍️</Text>
-            <Text className="text-lg font-semibold text-gray-900 mb-2">
-              No bikes found
-            </Text>
-            <Text className="text-sm text-gray-500 text-center">
-              Try adjusting your search or filters
-            </Text>
+          <View className="pt-10">
+            <EmptyState
+              icon="bicycle-outline"
+              title="No bikes found"
+              description="Try adjusting your search or clearing filters."
+            />
           </View>
         }
       />
@@ -319,7 +333,7 @@ const filteredBikes = useMemo(() => {
       >
         <Text className="text-white text-2xl">+</Text>
       </TouchableOpacity>
-    </View>
+    </SafeAreaView>
   );
 };
 

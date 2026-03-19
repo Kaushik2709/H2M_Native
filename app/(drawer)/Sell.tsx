@@ -16,6 +16,10 @@ import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { vehicleService, CreateVehicleData } from '../../services/vehicle.service';
 import { vehicleSpecsService } from '../../services/vehicle-specs.service';
+import { SafeAreaView } from "react-native-safe-area-context";
+import { LinearGradient } from "expo-linear-gradient";
+import { Colors } from "@/constants/theme";
+import { Button } from "@/components/ui/Button";
 
 const Sell = () => {
   const router = useRouter();
@@ -317,7 +321,7 @@ const Sell = () => {
         <View key={num} className="flex-row items-center">
           <View
             className={`w-9 h-9 rounded-full justify-center items-center ${
-              step >= num ? 'bg-blue-500' : 'bg-gray-300'
+              step >= num ? 'bg-indigo-600' : 'bg-gray-300'
             }`}
           >
             <Text
@@ -331,7 +335,7 @@ const Sell = () => {
           {num < 4 && (
             <View
               className={`w-10 h-0.5 ${
-                step > num ? 'bg-blue-500' : 'bg-gray-300'
+                step > num ? 'bg-indigo-600' : 'bg-gray-300'
               }`}
             />
           )}
@@ -413,18 +417,18 @@ const Sell = () => {
           className={`mb-4 flex-row items-center justify-center py-3 px-4 rounded-lg border-2 ${
             fetchingAI
               ? 'bg-gray-100 border-gray-300'
-              : 'bg-blue-50 border-blue-500'
+              : 'bg-indigo-50 border-indigo-500'
           }`}
         >
           {fetchingAI ? (
             <>
-              <ActivityIndicator size="small" color="#2563EB" />
-              <Text className="text-blue-600 font-semibold ml-2">Fetching AI Specs...</Text>
+              <ActivityIndicator size="small" color="#4F46E5" />
+              <Text className="text-indigo-700 font-semibold ml-2">Fetching AI Specs...</Text>
             </>
           ) : (
             <>
-              <Ionicons name="sparkles" size={20} color="#2563EB" />
-              <Text className="text-blue-600 font-semibold ml-2">
+              <Ionicons name="sparkles" size={20} color="#4F46E5" />
+              <Text className="text-indigo-700 font-semibold ml-2">
                 🤖 Auto-fill with AI
               </Text>
             </>
@@ -532,7 +536,7 @@ const Sell = () => {
         Location & Pricing
       </Text>
       <Text className="text-sm text-gray-500 mb-5">
-        Where is your vehicle located and what's your asking price?
+        Where is your vehicle located and what’s your asking price?
       </Text>
 
       <View className="mb-4">
@@ -591,7 +595,7 @@ const Sell = () => {
         <View
           className={`w-5 h-5 border-2 rounded mr-2 justify-center items-center ${
             formData.negotiable
-              ? 'bg-blue-500 border-blue-500'
+              ? 'bg-indigo-600 border-indigo-600'
               : 'border-gray-300'
           }`}
         >
@@ -638,7 +642,7 @@ const Sell = () => {
         <View
           className={`w-5 h-5 border-2 rounded mr-2 justify-center items-center ${
             formData.financingAvailable
-              ? 'bg-blue-500 border-blue-500'
+              ? 'bg-indigo-600 border-indigo-600'
               : 'border-gray-300'
           }`}
         >
@@ -658,7 +662,7 @@ const Sell = () => {
         <View
           className={`w-5 h-5 border-2 rounded mr-2 justify-center items-center ${
             formData.testDriveAvailable
-              ? 'bg-blue-500 border-blue-500'
+              ? 'bg-indigo-600 border-indigo-600'
               : 'border-gray-300'
           }`}
         >
@@ -722,22 +726,28 @@ const Sell = () => {
   );
 
   return (
-    <View className="flex-1 bg-gray-50">
+    <SafeAreaView className="flex-1 bg-gray-50" edges={["top"]}>
       <ScrollView
         className="flex-1"
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
+        contentContainerStyle={{ paddingBottom: 24 }}
       >
-        <View className="p-5 pt-10">
-          <Text className="text-3xl font-bold text-gray-900 mb-2">
-            Sell Your Vehicle
+        <LinearGradient
+          colors={[Colors.primary[900], Colors.primary[700]]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          className="pt-12 pb-8 px-5 rounded-b-3xl"
+        >
+          <Text className="text-white text-3xl font-extrabold mb-2">Sell</Text>
+          <Text className="text-white/80 text-sm">
+            List your car or bike and reach thousands of buyers.
           </Text>
-          <Text className="text-base text-gray-600">
-            List your car or bike and reach thousands of buyers
-          </Text>
-        </View>
+        </LinearGradient>
 
-        {renderStepIndicator()}
+        <View style={{ marginTop: 10 }}>
+          {renderStepIndicator()}
+        </View>
 
         {step === 1 && renderStep1()}
         {step === 2 && renderStep2()}
@@ -745,42 +755,28 @@ const Sell = () => {
         {step === 4 && renderStep4()}
 
         <View className="flex-row gap-3 p-5 pb-10">
-          {step > 1 && (
-            <TouchableOpacity
-              className="flex-1 bg-white border border-gray-300 py-3.5 rounded-lg items-center"
-              onPress={handleBack}
-            >
-              <Text className="text-gray-700 text-base font-semibold">
-                Back
-              </Text>
-            </TouchableOpacity>
-          )}
+          {step > 1 ? (
+            <View className="flex-1">
+              <Button title="Back" variant="secondary" onPress={handleBack} />
+            </View>
+          ) : null}
 
-          {step < 4 ? (
-            <TouchableOpacity
-              className="flex-1 bg-blue-500 py-3.5 rounded-lg items-center"
-              onPress={handleNext}
-            >
-              <Text className="text-white text-base font-semibold">Next</Text>
-            </TouchableOpacity>
-          ) : (
-            <TouchableOpacity
-              className="flex-1 bg-blue-500 py-3.5 rounded-lg items-center"
-              onPress={handleSubmit}
-              disabled={loading}
-            >
-              {loading ? (
-                <ActivityIndicator color="#FFFFFF" />
-              ) : (
-                <Text className="text-white text-base font-semibold">
-                  List Vehicle
-                </Text>
-              )}
-            </TouchableOpacity>
-          )}
+          <View className="flex-1">
+            {step < 4 ? (
+              <Button title="Next" rightIcon="arrow-forward" onPress={handleNext} />
+            ) : (
+              <Button
+                title={loading ? "Listing..." : "List vehicle"}
+                leftIcon="checkmark-circle"
+                onPress={handleSubmit}
+                loading={loading}
+                disabled={loading}
+              />
+            )}
+          </View>
         </View>
       </ScrollView>
-    </View>
+    </SafeAreaView>
   );
 };
 

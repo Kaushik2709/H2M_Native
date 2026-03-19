@@ -19,6 +19,60 @@ export interface Review {
   createdAt: string;
 }
 
+type BackendVehicleReviewsResponse = {
+  items?: any[];
+  total?: number;
+  page?: number;
+  limit?: number;
+  totalPages?: number;
+};
+
+const normalizeReview = (raw: any): Review => {
+  const ratingNumber = Number(
+    raw?.rating ?? raw?.overallRating ?? raw?.overall_rating ?? 0
+  );
+
+  return {
+    id: String(raw?.id ?? ''),
+    vehicleId: String(raw?.vehicleId ?? raw?.vehicle_id ?? ''),
+    userId: String(raw?.userId ?? raw?.user_id ?? ''),
+    user: raw?.user
+      ? {
+          firstName: String(raw.user.firstName ?? raw.user.first_name ?? ''),
+          lastName: String(raw.user.lastName ?? raw.user.last_name ?? ''),
+          avatar: (raw.user.avatar ?? raw.user.avatarUrl ?? raw.user.avatar_url) as
+            | string
+            | undefined,
+        }
+      : undefined,
+    rating: Number.isFinite(ratingNumber)
+      ? Math.max(0, Math.min(5, Math.round(ratingNumber)))
+      : 0,
+    title: (raw?.title as string | undefined) ?? undefined,
+    content: String(raw?.content ?? raw?.reviewText ?? raw?.review_text ?? ''),
+    pros: (raw?.pros as string[] | undefined) ?? undefined,
+    cons: (raw?.cons as string[] | undefined) ?? undefined,
+    isExpertReview: Boolean(raw?.isExpertReview ?? raw?.reviewType === 'expert'),
+    helpfulCount: Number(raw?.helpfulCount ?? raw?.helpful_count ?? 0) || 0,
+    createdAt: String(raw?.createdAt ?? raw?.created_at ?? new Date().toISOString()),
+  };
+};
+
+const normalizeReviewsPayload = (payload: unknown): Review[] => {
+  if (Array.isArray(payload)) {
+    return payload.map(normalizeReview);
+  }
+
+  if (payload && typeof payload === 'object') {
+    const maybe = payload as BackendVehicleReviewsResponse;
+    if (Array.isArray(maybe.items)) {
+      return maybe.items.map(normalizeReview);
+    }
+  }
+
+  return [];
+};
+
 export interface ApiResponse<T> {
   success: boolean;
   data?: T;
@@ -41,7 +95,11 @@ export const reviewService = {
     try {
       const response = await makeRequest(`/api/reviews/vehicles/${vehicleId}`);
       const data = await response.json();
-      return data;
+
+      return {
+        ...data,
+        data: normalizeReviewsPayload(data?.data),
+      } as ApiResponse<Review[]>;
     } catch (error) {
       console.error('Error fetching vehicle reviews:', error);
       return { success: false, error: 'Failed to fetch vehicle reviews' };

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from "react";
 import {
   View,
   Text,
@@ -10,9 +10,17 @@ import {
   Modal,
   ActivityIndicator,
 } from 'react-native';
+import { Platform } from "react-native";
 import * as ImagePicker from 'expo-image-picker';
 import { useAuth } from '../../contexts/AuthContext';
 import { useRouter } from 'expo-router';
+import { SafeAreaView } from "react-native-safe-area-context";
+import { LinearGradient } from "expo-linear-gradient";
+import { Colors } from "@/constants/theme";
+import { Button } from "@/components/ui/Button";
+import { Card } from "@/components/ui/Card";
+import { Input } from "@/components/ui/Input";
+import { LoadingScreen } from "@/components/ui/LoadingScreen";
 
 const Profile = () => {
   const { user: authUser, isAuthenticated, isLoading, signInWithGoogle, signOut, refreshUser } = useAuth();
@@ -89,6 +97,11 @@ const Profile = () => {
     try {
       setSigningIn(true);
       const response = await signInWithGoogle();
+
+      // Web flow typically redirects away; avoid showing transient alerts.
+      if (Platform.OS === "web") {
+        return;
+      }
       
       if (response.success) {
         Alert.alert('Success', 'Signed in successfully!');
@@ -160,47 +173,51 @@ const handleLogout = () => {
 
   // Show loading state
   if (isLoading) {
-    return (
-      <View className="flex-1 bg-gray-50 items-center justify-center">
-        <ActivityIndicator size="large" color="#3B82F6" />
-        <Text className="text-gray-600 mt-4">Loading...</Text>
-      </View>
-    );
+    return <LoadingScreen title="Loading profile" subtitle="Getting your account ready" />;
   }
 
   // Show login screen if not authenticated
   if (!isAuthenticated || !authUser) {
     return (
-      <View className="flex-1 bg-gray-50 items-center justify-center px-6">
-        <View className="items-center mb-8">
-          <Text className="text-6xl mb-4">🚗</Text>
-          <Text className="text-2xl font-bold text-gray-900 mb-2">
-            Welcome to H2M
-          </Text>
-          <Text className="text-gray-600 text-center">
-            Sign in to access your profile, manage listings, and more
-          </Text>
-        </View>
-        
-        <TouchableOpacity
-          className="bg-blue-500 px-8 py-4 rounded-full w-full items-center shadow-lg"
-          onPress={handleSignIn}
-          disabled={signingIn}
-        >
-          {signingIn ? (
-            <ActivityIndicator color="white" />
-          ) : (
-            <>
-              <Text className="text-white font-semibold text-lg mb-1">
-                Sign in with Google
-              </Text>
-              <Text className="text-blue-100 text-sm">
-                Quick and secure authentication
-              </Text>
-            </>
-          )}
-        </TouchableOpacity>
-      </View>
+      <SafeAreaView className="flex-1 bg-gray-50" edges={["top"]}>
+        <ScrollView className="flex-1" contentContainerStyle={{ paddingBottom: 28 }}>
+          <LinearGradient
+            colors={[Colors.primary[900], Colors.primary[700]]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            className="pt-12 pb-10 px-6 rounded-b-3xl"
+          >
+            <Text className="text-white text-3xl font-extrabold">Welcome</Text>
+            <Text className="text-white/80 text-sm mt-2">
+              Sign in to manage listings, auctions, and your account.
+            </Text>
+          </LinearGradient>
+
+          <View className="px-6" style={{ marginTop: -18 }}>
+            <Card className="p-5">
+              <View className="items-center">
+                <Text className="text-5xl">🚗</Text>
+                <Text className="text-xl font-extrabold text-gray-900 mt-3">
+                  H2M Account
+                </Text>
+                <Text className="text-sm text-gray-600 text-center mt-2">
+                  Quick and secure authentication.
+                </Text>
+              </View>
+
+              <View className="mt-5">
+                <Button
+                  title={signingIn ? "Signing in..." : "Sign in with Google"}
+                  leftIcon="logo-google"
+                  onPress={handleSignIn}
+                  loading={signingIn}
+                  disabled={signingIn}
+                />
+              </View>
+            </Card>
+          </View>
+        </ScrollView>
+      </SafeAreaView>
     );
   }
 
@@ -215,10 +232,15 @@ const handleLogout = () => {
     : 'Recently';
 
   return (
-    <View className="flex-1 bg-gray-50">
-      <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
-        {/* Header Section */}
-        <View className="bg-blue-500 pt-12 pb-6 px-5">
+    <SafeAreaView className="flex-1 bg-gray-50" edges={["top"]}>
+      <ScrollView className="flex-1" showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 28 }}>
+        {/* Header */}
+        <LinearGradient
+          colors={[Colors.primary[900], Colors.primary[700]]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          className="pt-12 pb-8 px-5 rounded-b-3xl"
+        >
           <View className="items-center">
             {/* Avatar */}
             <TouchableOpacity onPress={handleChangeAvatar} className="mb-4">
@@ -230,7 +252,7 @@ const handleLogout = () => {
                   />
                 ) : (
                   <View className="w-24 h-24 rounded-full bg-white items-center justify-center border-4 border-white">
-                    <Text className="text-blue-500 text-4xl font-bold">
+                    <Text className="text-indigo-700 text-4xl font-extrabold">
                       {userInitial}
                     </Text>
                   </View>
@@ -242,52 +264,57 @@ const handleLogout = () => {
             </TouchableOpacity>
 
             {/* User Info */}
-            <Text className="text-white text-2xl font-bold mb-1">
+            <Text className="text-white text-2xl font-extrabold mb-1">
               {userName}
             </Text>
             <Text className="text-blue-100 text-sm mb-1">{authUser.email}</Text>
             <Text className="text-blue-100 text-sm">
               Member since {joinedDate}
             </Text>
-
-            {/* Edit Profile Button */}
-            <TouchableOpacity
-              className="bg-white px-6 py-2 rounded-full mt-4"
+          </View>
+          <View className="mt-4 w-full px-3">
+            <Button
+              title="Edit profile"
+              variant="secondary"
+              leftIcon="create-outline"
               onPress={() => {
                 setEditForm({
                   name: userName,
-                  phone: authUser.phone || '',
-                  location: '',
+                  phone: authUser.phone || "",
+                  location: "",
                 });
                 setIsEditModalVisible(true);
               }}
-            >
-              <Text className="text-blue-500 font-semibold">Edit Profile</Text>
-            </TouchableOpacity>
+            />
           </View>
-        </View>
+        </LinearGradient>
 
-        {/* Stats Section */}
-        <View className="bg-white mx-5 -mt-4 rounded-xl p-4 shadow-sm flex-row justify-around">
+        {/* Stats */}
+        <View className="px-5" style={{ marginTop: -18 }}>
+          <Card className="p-5">
+            <View className="flex-row justify-around">
           <View className="items-center">
-            <Text className="text-2xl font-bold text-gray-900">0</Text>
+            <Text className="text-2xl font-extrabold text-gray-900">0</Text>
             <Text className="text-sm text-gray-500 mt-1">Listed</Text>
           </View>
           <View className="w-px bg-gray-200" />
           <View className="items-center">
-            <Text className="text-2xl font-bold text-gray-900">0</Text>
+            <Text className="text-2xl font-extrabold text-gray-900">0</Text>
             <Text className="text-sm text-gray-500 mt-1">Sold</Text>
           </View>
           <View className="w-px bg-gray-200" />
           <View className="items-center">
-            <Text className="text-2xl font-bold text-gray-900">0</Text>
+            <Text className="text-2xl font-extrabold text-gray-900">0</Text>
             <Text className="text-sm text-gray-500 mt-1">Active</Text>
           </View>
+            </View>
+          </Card>
         </View>
 
-        {/* Contact Info Section */}
-        <View className="bg-white mx-5 mt-5 rounded-xl p-4 shadow-sm">
-          <Text className="text-lg font-bold text-gray-900 mb-3">
+        {/* Contact */}
+        <View className="px-5 mt-5">
+          <Card className="p-5">
+          <Text className="text-lg font-extrabold text-gray-900 mb-3">
             Contact Information
           </Text>
           <View className="space-y-3">
@@ -327,10 +354,12 @@ const handleLogout = () => {
               </>
             )}
           </View>
+          </Card>
         </View>
 
-        {/* Menu Items */}
-        <View className="bg-white mx-5 mt-5 rounded-xl shadow-sm overflow-hidden">
+        {/* Menu */}
+        <View className="px-5 mt-5">
+          <Card className="p-0 overflow-hidden">
           {menuItems.map((item, index) => (
             <View key={index}>
               <TouchableOpacity
@@ -355,24 +384,21 @@ const handleLogout = () => {
               )}
             </View>
           ))}
+          </Card>
         </View>
 
-        {/* Logout Button - Only show when authenticated */}
+        {/* Logout */}
         {isAuthenticated && (
-          <TouchableOpacity
-            className="bg-red-500 mx-5 mt-5 mb-8 rounded-xl p-4 items-center shadow-sm active:bg-red-600"
-            onPress={handleLogout}
-            disabled={loading}
-          >
-            {loading ? (
-              <ActivityIndicator color="white" />
-            ) : (
-              <View className="flex-row items-center">
-                <Text className="text-white font-semibold text-base mr-2">Logout</Text>
-                <Text className="text-white text-lg">🚪</Text>
-              </View>
-            )}
-          </TouchableOpacity>
+          <View className="px-5 mt-5">
+            <Button
+              title="Logout"
+              variant="danger"
+              leftIcon="log-out-outline"
+              onPress={handleLogout}
+              loading={loading}
+              disabled={loading}
+            />
+          </View>
         )}
       </ScrollView>
 
@@ -394,74 +420,49 @@ const handleLogout = () => {
               </TouchableOpacity>
             </View>
 
-            <View className="space-y-4">
-              <View>
-                <Text className="text-sm font-semibold text-gray-700 mb-2">
-                  Full Name
-                </Text>
-                <TextInput
-                  className="bg-gray-50 border border-gray-300 rounded-lg p-3 text-base"
-                  value={editForm.name}
-                  onChangeText={(text) =>
-                    setEditForm((prev) => ({ ...prev, name: text }))
-                  }
-                  placeholder="Enter your name"
+            <Input
+              label="Full name"
+              value={editForm.name}
+              onChangeText={(text) => setEditForm((prev) => ({ ...prev, name: text }))}
+              placeholder="Enter your name"
+              containerClassName="mb-4"
+            />
+            <Input
+              label="Phone number"
+              value={editForm.phone}
+              onChangeText={(text) => setEditForm((prev) => ({ ...prev, phone: text }))}
+              placeholder="Enter your phone"
+              keyboardType="phone-pad"
+              containerClassName="mb-4"
+            />
+            <Input
+              label="Location"
+              value={editForm.location}
+              onChangeText={(text) => setEditForm((prev) => ({ ...prev, location: text }))}
+              placeholder="Enter your location"
+            />
+
+            <View className="flex-row mt-6" style={{ gap: 12 }}>
+              <View className="flex-1">
+                <Button
+                  title="Cancel"
+                  variant="secondary"
+                  onPress={() => setIsEditModalVisible(false)}
                 />
               </View>
-
-              <View>
-                <Text className="text-sm font-semibold text-gray-700 mb-2">
-                  Phone Number
-                </Text>
-                <TextInput
-                  className="bg-gray-50 border border-gray-300 rounded-lg p-3 text-base"
-                  value={editForm.phone}
-                  onChangeText={(text) =>
-                    setEditForm((prev) => ({ ...prev, phone: text }))
-                  }
-                  placeholder="Enter your phone"
-                  keyboardType="phone-pad"
+              <View className="flex-1">
+                <Button
+                  title={loading ? "Saving..." : "Save"}
+                  onPress={handleUpdateProfile}
+                  loading={loading}
+                  disabled={loading}
                 />
               </View>
-
-              <View>
-                <Text className="text-sm font-semibold text-gray-700 mb-2">
-                  Location
-                </Text>
-                <TextInput
-                  className="bg-gray-50 border border-gray-300 rounded-lg p-3 text-base"
-                  value={editForm.location}
-                  onChangeText={(text) =>
-                    setEditForm((prev) => ({ ...prev, location: text }))
-                  }
-                  placeholder="Enter your location"
-                />
-              </View>
-            </View>
-
-            <View className="flex-row gap-3 mt-6">
-              <TouchableOpacity
-                className="flex-1 bg-gray-200 py-3 rounded-lg items-center"
-                onPress={() => setIsEditModalVisible(false)}
-              >
-                <Text className="text-gray-700 font-semibold">Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                className="flex-1 bg-blue-500 py-3 rounded-lg items-center"
-                onPress={handleUpdateProfile}
-                disabled={loading}
-              >
-                {loading ? (
-                  <ActivityIndicator color="white" />
-                ) : (
-                  <Text className="text-white font-semibold">Save Changes</Text>
-                )}
-              </TouchableOpacity>
             </View>
           </View>
         </View>
       </Modal>
-    </View>
+    </SafeAreaView>
   );
 };
 

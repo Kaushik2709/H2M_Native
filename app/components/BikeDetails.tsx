@@ -60,7 +60,7 @@ const BikeDetails = () => {
   const fetchReviews = async () => {
     const response = await reviewService.getVehicleReviews(id);
     if (response.success && response.data) {
-      setReviews(response.data);
+      setReviews(Array.isArray(response.data) ? response.data : []);
     }
   };
 

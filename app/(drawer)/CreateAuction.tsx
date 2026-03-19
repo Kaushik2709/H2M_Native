@@ -1,11 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from "react";
 import {
   View,
   Text,
   ScrollView,
   TouchableOpacity,
   TextInput,
-  ActivityIndicator,
   Alert,
   Image,
   Platform,
@@ -16,6 +15,13 @@ import { Ionicons } from '@expo/vector-icons';
 import { auctionService } from '../../services/auction.service';
 import { vehicleService, Vehicle } from '../../services/vehicle.service';
 import { useAuth } from '../../contexts/AuthContext';
+import { LinearGradient } from "expo-linear-gradient";
+import { Colors } from "@/constants/theme";
+import { Button } from "@/components/ui/Button";
+import { Card } from "@/components/ui/Card";
+import { EmptyState } from "@/components/ui/EmptyState";
+import { Input } from "@/components/ui/Input";
+import { LoadingScreen } from "@/components/ui/LoadingScreen";
 
 const CreateAuction = () => {
   const router = useRouter();
@@ -286,12 +292,10 @@ const CreateAuction = () => {
 
   if (authLoading || loading) {
     return (
-      <SafeAreaView className="flex-1 justify-center items-center bg-gray-50">
-        <ActivityIndicator size="large" color="#2563EB" />
-        <Text className="mt-4 text-base text-gray-600">
-          {authLoading ? 'Checking authentication...' : 'Loading your vehicles...'}
-        </Text>
-      </SafeAreaView>
+      <LoadingScreen
+        title={authLoading ? "Checking authentication" : "Loading your vehicles"}
+        subtitle="Preparing your auction setup"
+      />
     );
   }
 
@@ -305,313 +309,299 @@ const CreateAuction = () => {
         <Text className="text-gray-600 mt-2 text-center">
           Please sign in to create an auction
         </Text>
-        <TouchableOpacity
-          className="mt-6 bg-blue-600 px-6 py-3 rounded-lg"
-          onPress={() => router.push('/(drawer)/Profile')}
-        >
-          <Text className="text-white font-semibold">Sign In</Text>
-        </TouchableOpacity>
+        <View className="mt-6 w-full">
+          <Button
+            title="Sign in"
+            leftIcon="log-in"
+            onPress={() => router.push("/(drawer)/Profile")}
+          />
+        </View>
       </SafeAreaView>
     );
   }
 
   return (
-    <SafeAreaView className="flex-1 bg-gray-50">
-      <ScrollView 
-        className="flex-1" 
+    <SafeAreaView className="flex-1 bg-gray-50" edges={["top"]}>
+      <ScrollView
+        className="flex-1"
         contentContainerStyle={{ paddingBottom: 40 }}
         keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
       >
         {/* Header */}
-        <View className="bg-white px-4 py-4 border-b border-gray-200 flex-row items-center">
-          <TouchableOpacity onPress={() => router.back()} className="mr-4">
-            <Ionicons name="arrow-back" size={24} color="#1F2937" />
-          </TouchableOpacity>
-          <Text className="text-xl font-bold text-gray-900">Create Auction</Text>
-        </View>
+        <LinearGradient
+          colors={[Colors.primary[900], Colors.primary[700]]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          className="pt-10 pb-6 px-5 rounded-b-3xl"
+        >
+          <View className="flex-row items-center justify-between" style={{ gap: 12 }}>
+            <TouchableOpacity
+              onPress={() => router.back()}
+              className="w-11 h-11 rounded-2xl bg-white/10 border border-white/20 items-center justify-center"
+              activeOpacity={0.85}
+            >
+              <Ionicons name="arrow-back" size={20} color="#FFFFFF" />
+            </TouchableOpacity>
+            <View className="flex-1">
+              <Text className="text-white text-2xl font-extrabold">Create Auction</Text>
+              <Text className="text-white/80 text-sm mt-1">
+                Pick a vehicle and set auction rules.
+              </Text>
+            </View>
+          </View>
+        </LinearGradient>
 
         {/* Select Vehicle */}
-        <View className="bg-white mt-4 mx-4 p-4 rounded-xl shadow-sm">
-          <Text className="text-lg font-semibold text-gray-900 mb-3">Select Vehicle *</Text>
-          {vehicles.length === 0 ? (
-            <View className="py-8 items-center">
-              <Ionicons name="car-outline" size={48} color="#9CA3AF" />
-              <Text className="text-gray-600 mt-2 text-center">
-                No available vehicles found.{'\n'}Add a vehicle first to create an auction.
+        <View className="px-5" style={{ marginTop: -18 }}>
+          <Card className="p-0">
+            <View className="p-5">
+              <Text className="text-lg font-extrabold text-gray-900 mb-1">
+                Select vehicle
               </Text>
-              <TouchableOpacity
-                className="mt-4 bg-blue-600 px-6 py-2 rounded-lg"
-                onPress={() => router.push('/(drawer)/Sell')}
-              >
-                <Text className="text-white font-semibold">Add Vehicle</Text>
-              </TouchableOpacity>
+              <Text className="text-sm text-gray-600">
+                Only active vehicles not already in auction.
+              </Text>
             </View>
-          ) : (
-            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-              {vehicles.map((vehicle) => (
-                <TouchableOpacity
-                  key={vehicle.id}
-                  onPress={() => setSelectedVehicle(vehicle)}
-                  className={`mr-3 w-48 rounded-lg overflow-hidden border-2 ${
-                    selectedVehicle?.id === vehicle.id
-                      ? 'border-blue-600 bg-blue-50'
-                      : 'border-gray-200 bg-white'
-                  }`}
-                >
-                  <Image
-                    source={{
-                      uri: vehicle.images?.[0] || 'https://via.placeholder.com/300x200.png?text=No+Image',
-                    }}
-                    className="w-full h-32"
-                    resizeMode="cover"
-                  />
-                  <View className="p-3">
-                    <Text className="font-semibold text-gray-900" numberOfLines={1}>
-                      {vehicle.title}
-                    </Text>
-                    <Text className="text-sm text-gray-600 mt-1">
-                      {vehicle.year} • {vehicle.city}
-                    </Text>
-                    <Text className="text-sm font-semibold text-blue-600 mt-1">
-                      {formatPrice(vehicle.price)}
-                    </Text>
-                  </View>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-          )}
-        </View>
 
-        {/* Debug Info */}
-        {__DEV__ && (
-          <View className="mx-4 mt-4 p-3 bg-yellow-100 rounded-lg">
-            <Text className="text-xs text-gray-700">
-              Debug: Vehicle Selected: {selectedVehicle ? 'Yes' : 'No'} | 
-              Submitting: {submitting ? 'Yes' : 'No'}
-            </Text>
-          </View>
-        )}
+            {vehicles.length === 0 ? (
+              <View className="px-5 pb-6">
+                <EmptyState
+                  icon="car-outline"
+                  title="No available vehicles"
+                  description="Add a vehicle first to create an auction."
+                />
+                <View className="mt-4">
+                  <Button
+                    title="Add vehicle"
+                    leftIcon="add-circle"
+                    onPress={() => router.push("/(drawer)/Sell")}
+                  />
+                </View>
+              </View>
+            ) : (
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 18 }}
+              >
+                {vehicles.map((vehicle) => (
+                  <TouchableOpacity
+                    key={vehicle.id}
+                    onPress={() => setSelectedVehicle(vehicle)}
+                    activeOpacity={0.9}
+                    className={`mr-3 w-56 rounded-2xl overflow-hidden border ${
+                      selectedVehicle?.id === vehicle.id
+                        ? "border-indigo-300 bg-indigo-50"
+                        : "border-gray-100 bg-white"
+                    }`}
+                  >
+                    <Image
+                      source={{
+                        uri:
+                          vehicle.images?.[0] ||
+                          "https://via.placeholder.com/300x200.png?text=No+Image",
+                      }}
+                      className="w-full h-36"
+                      resizeMode="cover"
+                    />
+                    <View className="p-4">
+                      <Text className="font-extrabold text-gray-900" numberOfLines={1}>
+                        {vehicle.title}
+                      </Text>
+                      <Text className="text-sm text-gray-600 mt-1">
+                        {vehicle.year} • {vehicle.city}
+                      </Text>
+                      <Text className="text-sm font-extrabold text-indigo-700 mt-2">
+                        {formatPrice(vehicle.price)}
+                      </Text>
+                    </View>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            )}
+          </Card>
+        </View>
 
         {selectedVehicle && (
           <>
             {/* Pricing */}
-            <View className="bg-white mt-4 mx-4 p-4 rounded-xl shadow-sm">
-              <Text className="text-lg font-semibold text-gray-900 mb-3">Pricing</Text>
+            <View className="px-5 mt-4">
+              <Card className="p-5">
+                <Text className="text-lg font-extrabold text-gray-900 mb-1">Pricing</Text>
+                <Text className="text-sm text-gray-600 mb-5">
+                  Set starting price and optional guardrails.
+                </Text>
 
-              <View className="mb-4">
-                <Text className="text-sm font-medium text-gray-700 mb-2">Starting Price *</Text>
-                <TextInput
-                  className="border border-gray-300 rounded-lg px-4 py-3 text-base"
+                <Input
+                  label="Starting price *"
                   placeholder="e.g., 500000"
                   value={startingPrice}
                   onChangeText={setStartingPrice}
                   keyboardType="numeric"
+                  containerClassName="mb-4"
                 />
-              </View>
 
-              <View className="mb-4">
-                <Text className="text-sm font-medium text-gray-700 mb-2">Reserve Price (Optional)</Text>
-                <TextInput
-                  className="border border-gray-300 rounded-lg px-4 py-3 text-base"
+                <Input
+                  label="Reserve price (optional)"
                   placeholder="Minimum acceptable price"
                   value={reservePrice}
                   onChangeText={setReservePrice}
                   keyboardType="numeric"
+                  containerClassName="mb-4"
                 />
-              </View>
 
-              <View className="mb-4">
-                <Text className="text-sm font-medium text-gray-700 mb-2">Buy Now Price (Optional)</Text>
-                <TextInput
-                  className="border border-gray-300 rounded-lg px-4 py-3 text-base"
+                <Input
+                  label="Buy now price (optional)"
                   placeholder="Instant purchase price"
                   value={buyNowPrice}
                   onChangeText={setBuyNowPrice}
                   keyboardType="numeric"
+                  containerClassName="mb-4"
                 />
-              </View>
 
-              <View>
-                <Text className="text-sm font-medium text-gray-700 mb-2">Bid Increment</Text>
-                <TextInput
-                  className="border border-gray-300 rounded-lg px-4 py-3 text-base"
+                <Input
+                  label="Bid increment"
                   placeholder="1000"
                   value={bidIncrement}
                   onChangeText={setBidIncrement}
                   keyboardType="numeric"
+                  hint="Minimum amount by which bids must increase"
                 />
-                <Text className="text-xs text-gray-500 mt-1">
-                  Minimum amount by which bids must increase
-                </Text>
-              </View>
+              </Card>
             </View>
 
             {/* Auction Timing */}
-            <View className="bg-white mt-4 mx-4 p-4 rounded-xl shadow-sm">
-              <Text className="text-lg font-semibold text-gray-900 mb-3">Auction Timing *</Text>
+            <View className="px-5 mt-4">
+              <Card className="p-5">
+                <Text className="text-lg font-extrabold text-gray-900 mb-1">Auction timing</Text>
+                <Text className="text-sm text-gray-600 mb-5">Use local time. Format matters.</Text>
 
-              <View className="mb-4">
-                <Text className="text-sm font-medium text-gray-700 mb-2">Start Date *</Text>
-                <TextInput
-                  className="border border-gray-300 rounded-lg px-4 py-3 text-base"
+                <Input
+                  label="Start date *"
                   placeholder="YYYY-MM-DD"
                   value={startDate}
                   onChangeText={setStartDate}
+                  hint={`Format: YYYY-MM-DD (e.g., ${getTomorrowDate()})`}
+                  containerClassName="mb-4"
                 />
-                <Text className="text-xs text-gray-500 mt-1">
-                  Format: YYYY-MM-DD (e.g., {getTomorrowDate()})
-                </Text>
-              </View>
 
-              <View className="mb-4">
-                <Text className="text-sm font-medium text-gray-700 mb-2">Start Time *</Text>
-                <TextInput
-                  className="border border-gray-300 rounded-lg px-4 py-3 text-base"
-                  placeholder="HH:MM (24-hour format)"
+                <Input
+                  label="Start time *"
+                  placeholder="HH:MM (24-hour)"
                   value={startTime}
                   onChangeText={setStartTime}
+                  hint="Format: HH:MM (e.g., 10:00)"
+                  containerClassName="mb-4"
                 />
-                <Text className="text-xs text-gray-500 mt-1">Format: HH:MM (e.g., 10:00)</Text>
-              </View>
 
-              <View className="mb-4">
-                <Text className="text-sm font-medium text-gray-700 mb-2">End Date *</Text>
-                <TextInput
-                  className="border border-gray-300 rounded-lg px-4 py-3 text-base"
+                <Input
+                  label="End date *"
                   placeholder="YYYY-MM-DD"
                   value={endDate}
                   onChangeText={setEndDate}
+                  containerClassName="mb-4"
                 />
-              </View>
 
-              <View>
-                <Text className="text-sm font-medium text-gray-700 mb-2">End Time *</Text>
-                <TextInput
-                  className="border border-gray-300 rounded-lg px-4 py-3 text-base"
-                  placeholder="HH:MM (24-hour format)"
+                <Input
+                  label="End time *"
+                  placeholder="HH:MM (24-hour)"
                   value={endTime}
                   onChangeText={setEndTime}
                 />
-              </View>
+              </Card>
             </View>
 
             {/* Auction Type */}
-            <View className="bg-white mt-4 mx-4 p-4 rounded-xl shadow-sm">
-              <Text className="text-lg font-semibold text-gray-900 mb-3">Auction Type</Text>
-              <View className="flex-row gap-3">
-                <TouchableOpacity
-                  onPress={() => setAuctionType('open')}
-                  className={`flex-1 py-3 px-4 rounded-lg border-2 ${
-                    auctionType === 'open'
-                      ? 'border-blue-600 bg-blue-50'
-                      : 'border-gray-200 bg-white'
-                  }`}
-                >
-                  <Text
-                    className={`text-center font-semibold ${
-                      auctionType === 'open' ? 'text-blue-600' : 'text-gray-700'
+            <View className="px-5 mt-4">
+              <Card className="p-5">
+                <Text className="text-lg font-extrabold text-gray-900 mb-3">Auction type</Text>
+                <View className="flex-row" style={{ gap: 10 }}>
+                  <TouchableOpacity
+                    onPress={() => setAuctionType("open")}
+                    activeOpacity={0.9}
+                    className={`flex-1 py-3 px-4 rounded-2xl border ${
+                      auctionType === "open"
+                        ? "border-indigo-300 bg-indigo-50"
+                        : "border-gray-200 bg-white"
                     }`}
                   >
-                    Open
-                  </Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  onPress={() => setAuctionType('dealer_only')}
-                  className={`flex-1 py-3 px-4 rounded-lg border-2 ${
-                    auctionType === 'dealer_only'
-                      ? 'border-blue-600 bg-blue-50'
-                      : 'border-gray-200 bg-white'
-                  }`}
-                >
-                  <Text
-                    className={`text-center font-semibold ${
-                      auctionType === 'dealer_only' ? 'text-blue-600' : 'text-gray-700'
+                    <Text
+                      className={`text-center font-extrabold ${
+                        auctionType === "open" ? "text-indigo-700" : "text-gray-800"
+                      }`}
+                    >
+                      Open
+                    </Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    onPress={() => setAuctionType("dealer_only")}
+                    activeOpacity={0.9}
+                    className={`flex-1 py-3 px-4 rounded-2xl border ${
+                      auctionType === "dealer_only"
+                        ? "border-indigo-300 bg-indigo-50"
+                        : "border-gray-200 bg-white"
                     }`}
                   >
-                    Dealer Only
-                  </Text>
-                </TouchableOpacity>
-              </View>
+                    <Text
+                      className={`text-center font-extrabold ${
+                        auctionType === "dealer_only"
+                          ? "text-indigo-700"
+                          : "text-gray-800"
+                      }`}
+                    >
+                      Dealer only
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              </Card>
             </View>
 
             {/* Deposit Settings */}
-            <View className="bg-white mt-4 mx-4 p-4 rounded-xl shadow-sm">
-              <View className="flex-row items-center justify-between mb-3">
-                <Text className="text-lg font-semibold text-gray-900">Require Deposit</Text>
-                <TouchableOpacity
-                  onPress={() => setDepositRequired(!depositRequired)}
-                  className={`w-12 h-6 rounded-full ${
-                    depositRequired ? 'bg-blue-600' : 'bg-gray-300'
-                  }`}
-                >
-                  <View
-                    className={`w-5 h-5 rounded-full bg-white mt-0.5 ${
-                      depositRequired ? 'ml-6' : 'ml-0.5'
+            <View className="px-5 mt-4">
+              <Card className="p-5">
+                <View className="flex-row items-center justify-between mb-3">
+                  <Text className="text-lg font-extrabold text-gray-900">Require deposit</Text>
+                  <TouchableOpacity
+                    onPress={() => setDepositRequired(!depositRequired)}
+                    activeOpacity={0.9}
+                    className={`w-12 h-6 rounded-full ${
+                      depositRequired ? "bg-indigo-600" : "bg-gray-300"
                     }`}
-                  />
-                </TouchableOpacity>
-              </View>
+                  >
+                    <View
+                      className={`w-5 h-5 rounded-full bg-white mt-0.5 ${
+                        depositRequired ? "ml-6" : "ml-0.5"
+                      }`}
+                    />
+                  </TouchableOpacity>
+                </View>
 
-              {depositRequired && (
-                <View>
-                  <Text className="text-sm font-medium text-gray-700 mb-2">Deposit Amount</Text>
-                  <TextInput
-                    className="border border-gray-300 rounded-lg px-4 py-3 text-base"
+                {depositRequired ? (
+                  <Input
+                    label="Deposit amount"
                     placeholder="e.g., 50000"
                     value={depositAmount}
                     onChangeText={setDepositAmount}
                     keyboardType="numeric"
                   />
-                </View>
-              )}
-            </View>
-
-            {/* Submit Button */}
-            <View className="mx-4 mt-6 mb-8" style={{ zIndex: 10, elevation: 10 }}>
-              <TouchableOpacity
-                onPress={() => {
-                  console.log('🔵 Create Auction button pressed');
-                  console.log('Button state - submitting:', submitting);
-                  console.log('Button state - selectedVehicle:', selectedVehicle?.id);
-                  console.log('Form values:', {
-                    startingPrice,
-                    startDate,
-                    startTime,
-                    endDate,
-                    endTime,
-                  });
-                  if (!submitting) {
-                    handleCreateAuction();
-                  } else {
-                    console.log('⚠️ Button is disabled (submitting)');
-                  }
-                }}
-                onPressIn={() => {
-                  console.log('🔵 Button onPressIn - touch detected');
-                  Alert.alert('Debug', 'Button touched!');
-                }}
-                disabled={submitting}
-                activeOpacity={0.7}
-                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                style={{
-                  backgroundColor: submitting ? '#9CA3AF' : '#2563EB',
-                  paddingVertical: 16,
-                  borderRadius: 8,
-                  minHeight: 56,
-                  width: '100%',
-                }}
-              >
-                {submitting ? (
-                  <View className="flex-row items-center justify-center">
-                    <ActivityIndicator size="small" color="#FFF" />
-                    <Text className="text-white font-semibold ml-2">Creating Auction...</Text>
-                  </View>
                 ) : (
-                  <Text className="text-white font-semibold text-center text-lg">
-                    Create Auction
+                  <Text className="text-sm text-gray-600">
+                    Optional: require a refundable deposit to place bids.
                   </Text>
                 )}
-              </TouchableOpacity>
+              </Card>
+            </View>
+
+            {/* Submit */}
+            <View className="px-5 mt-6 mb-8">
+              <Button
+                title={submitting ? "Creating auction..." : "Create auction"}
+                leftIcon="hammer"
+                onPress={handleCreateAuction}
+                disabled={submitting}
+                loading={submitting}
+              />
             </View>
           </>
         )}

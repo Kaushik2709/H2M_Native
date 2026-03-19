@@ -2,7 +2,6 @@ import React from 'react';
 import {
   View,
   Text,
-  TouchableOpacity,
   Pressable,
   ViewStyle,
   StyleProp,
@@ -10,6 +9,7 @@ import {
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
+import { Shadows } from '@/constants/theme';
 
 // --- Improved Card Component ---
 
@@ -32,34 +32,38 @@ export const Card: React.FC<CardProps> = ({
   padding,
   shadow,
 }) => {
-  const baseClasses = 'bg-white rounded-2xl overflow-hidden';
+  const baseClasses = 'bg-white rounded-2xl overflow-hidden p-4';
   
   // Map legacy props to classes or styles if needed, but prefer new variant system
   // If shadow prop is explicitly false, override variant default
   
   const variantClasses = {
-    default: 'border border-gray-100 shadow-sm',
-    outlined: 'border border-gray-200 bg-transparent shadow-none',
-    ghost: 'bg-transparent shadow-none border-0',
+    default: 'border border-gray-100',
+    outlined: 'border border-gray-200 bg-transparent',
+    ghost: 'bg-transparent border-0',
   };
 
   let appliedVariantClass = variantClasses[variant];
-  if (shadow === true) appliedVariantClass += ' shadow-md';
-  if (shadow === false) appliedVariantClass = appliedVariantClass.replace('shadow-sm', '').replace('shadow-md', '');
+  if (shadow === false) {
+    // explicit override
+  }
 
   const containerClasses = `${baseClasses} ${appliedVariantClass} ${className}`;
   
   // Handle padding via style if passed as number, else use default via class
-  const dynamicStyle = [
-    padding !== undefined ? { padding } : undefined,
-    style
-  ];
+  const dynamicStyle = [padding !== undefined ? { padding } : undefined, style];
 
-  // Default padding if not specified
-  const contentClasses = padding === undefined ? 'p-4' : '';
+  const variantShadowStyle =
+    shadow === false
+      ? undefined
+      : shadow === true
+        ? Shadows.lg
+        : variant === 'default'
+          ? Shadows.md
+          : undefined;
 
   const Content = (
-    <View className={`${containerClasses} ${contentClasses}`} style={dynamicStyle}>
+    <View className={containerClasses} style={[variantShadowStyle, ...dynamicStyle]}>
       {children}
     </View>
   );
@@ -69,11 +73,13 @@ export const Card: React.FC<CardProps> = ({
       <Pressable 
         onPress={onPress} 
         className="active:opacity-90"
-        style={({ pressed }) => [dynamicStyle, { opacity: pressed ? 0.9 : 1 }]}
+        style={({ pressed }) => [
+          variantShadowStyle,
+          ...dynamicStyle,
+          { opacity: pressed ? 0.94 : 1, transform: [{ scale: pressed ? 0.99 : 1 }] },
+        ]}
       >
-        <View className={`${containerClasses} ${contentClasses}`}>
-           {children}
-        </View>
+        <View className={containerClasses}>{children}</View>
       </Pressable>
     );
   }
@@ -125,8 +131,8 @@ export const VehicleCard: React.FC<VehicleCardProps> = ({
   };
 
   const imageSource = images && images.length > 0
-    ? { uri: images[0] } 
-    : require('../../../assets/images/adaptive-icon.png'); // Fallback
+    ? { uri: images[0] }
+    : require('../../assets/images/icon.png'); // Fallback
 
   const blurhash =
     '|rF?hV%2WCj[ayj[a|j[az_NaeWBj@ayfRayfQfQM{M|azj[azf6fQfQfQIpWXofj[ayj[j[fQayWCoeoeaya}j[ayfQa{oLj?j[WVj[ayayj[fQoff7azayj[ayj[j[ayofayayayj[fQj[ayayj[ayfjj[j[ayju';

@@ -6,6 +6,9 @@ import { Platform } from 'react-native';
 import * as WebBrowser from 'expo-web-browser';
 import Constants from 'expo-constants';
 
+// Completes auth sessions on web (recommended by expo-web-browser)
+WebBrowser.maybeCompleteAuthSession();
+
 const TOKEN_KEY = '@auth_token';
 const REFRESH_TOKEN_KEY = '@refresh_token';
 const USER_KEY = '@user_data';
@@ -40,6 +43,8 @@ export interface ApiResponse<T> {
   error?: string;
   message?: string;
 }
+
+export type UpdateProfileInput = Partial<Pick<User, 'firstName' | 'lastName' | 'phone' | 'avatarUrl'>>;
 
 class AuthService {
   private token: string | null = null;
@@ -273,6 +278,14 @@ class AuthService {
   }
 
   /**
+   * Public entrypoint used by AuthContext.
+   * Delegates to the WebBrowser-based OAuth implementation.
+   */
+  async signInWithGoogle(): Promise<AuthResponse> {
+    return this.signInWithGoogleWebBrowser();
+  }
+
+  /**
    * Handle OAuth callback URL and extract tokens
    */
   private async handleOAuthCallback(callbackUrl: string): Promise<AuthResponse> {
@@ -403,6 +416,38 @@ class AuthService {
       return {
         success: false,
         error: 'Failed to fetch user profile',
+      };
+    }
+  }
+
+  /**
+   * Update current user's profile
+   */
+  async updateProfile(updates: UpdateProfileInput): Promise<ApiResponse<User>> {
+    try {
+      const payload: Record<string, unknown> = {};
+      if (updates.firstName !== undefined) payload.firstName = updates.firstName;
+      if (updates.lastName !== undefined) payload.lastName = updates.lastName;
+      if (updates.phone !== undefined) payload.phone = updates.phone;
+      if (updates.avatarUrl !== undefined) payload.avatarUrl = updates.avatarUrl;
+
+      const response = await this.makeAuthenticatedRequest('/api/users/profile', {
+        method: 'PUT',
+        body: JSON.stringify(payload),
+      });
+
+      const data: ApiResponse<User> = await response.json();
+
+      if (data.success && data.data) {
+        await this.setUser(data.data);
+      }
+
+      return data;
+    } catch (error) {
+      console.error('Error updating profile:', error);
+      return {
+        success: false,
+        error: 'Failed to update profile',
       };
     }
   }

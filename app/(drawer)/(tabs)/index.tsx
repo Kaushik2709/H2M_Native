@@ -1,13 +1,13 @@
 import { API_BASE } from "@/config/api";
-import { useNavigation } from "@react-navigation/native";
+import api from "@/services/api.client";
+import { Colors } from "@/constants/theme";
 import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   FlatList,
   Image,
   Modal,
-  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -47,9 +47,10 @@ const budgets = [
 /* ======================================================== */
 
 export default function Index() {
-  const navigation = useNavigation();
   const router = useRouter();
-  const [featured, setFeatured] = useState([]);
+  const [vehicles, setVehicles] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   const [searchQuery, setSearchQuery] = useState("");
   const [tab, setTab] = useState("buy");
@@ -67,48 +68,55 @@ export default function Index() {
 
   useEffect(() => {
     const fetchVehicles = async () => {
+      setLoading(true);
+      setError(null);
       try {
-        const res = await fetch(`${API_BASE}/api/vehicles`);
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-
-        const json = await res.json();
-        setFeatured(json.data.items);
-      } catch (err) {
+        const payload = await api.get<any>("/api/vehicles");
+        const items = payload?.data?.items || payload?.items || payload || [];
+        setVehicles(Array.isArray(items) ? items : []);
+      } catch (err: any) {
         console.error("Fetch vehicles failed:", err);
+        const message = err?.message || "Unable to reach the backend";
+        setError(message);
+      } finally {
+        setLoading(false);
       }
     };
 
     fetchVehicles();
   }, []);
 
-  const hasActiveFilters = city || brand || budget;
+  const filteredVehicles = useMemo(() => {
+    return vehicles.filter((v: any) => {
+      const title = v.title?.toLowerCase?.() || "";
+      const price = typeof v.price === "number" ? v.price : parseFloat(v.price || "0");
 
-  const onSearch = () => {
-    const results = featured.filter((v: any) => {
       const matchCity = city ? v.location === city : true;
-      const matchBrand = brand
-        ? v.title.toLowerCase().includes(brand.toLowerCase())
-        : true;
+      const matchBrand = brand ? title.includes(brand.toLowerCase()) : true;
 
       const matchBudget = (() => {
         if (!budget) return true;
-        const price = parseFloat(v.price);
-        if (budget === "0-5") return price < 5;
-        if (budget === "5-10") return price >= 5 && price <= 10;
-        if (budget === "10-20") return price > 10 && price <= 20;
-        if (budget === "20-50") return price > 20 && price <= 50;
-        if (budget === "50+") return price > 50;
+        const inLakhs = price > 100000 ? price / 100000 : price; // tolerate raw or lakh pricing
+        if (budget === "0-5") return inLakhs < 5;
+        if (budget === "5-10") return inLakhs >= 5 && inLakhs <= 10;
+        if (budget === "10-20") return inLakhs > 10 && inLakhs <= 20;
+        if (budget === "20-50") return inLakhs > 20 && inLakhs <= 50;
+        if (budget === "50+") return inLakhs > 50;
         return true;
       })();
 
       const matchQuery = searchQuery
-        ? v.title.toLowerCase().includes(searchQuery.toLowerCase())
+        ? title.includes(searchQuery.toLowerCase())
         : true;
 
       return matchCity && matchBrand && matchBudget && matchQuery;
     });
+  }, [vehicles, city, brand, budget, searchQuery]);
 
-    setFeatured(results);
+  const hasActiveFilters = city || brand || budget || searchQuery;
+
+  const onSearch = () => {
+    // filtering happens reactively; this keeps the CTA purposeful for UX
   };
 
   const clearFilters = () => {
@@ -270,64 +278,83 @@ export default function Index() {
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-white">
+    <SafeAreaView className="flex-1 bg-gray-50">
       <ScrollView>
         {/* Hero */}
         <LinearGradient
-          colors={["#4A90E2", "#1A4ED8"]}
+          colors={[Colors.primary[900], Colors.primary[700]]}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
-          className="py-14 rounded-b-3xl items-center justify-center shadow-lg"
+          className="py-16 rounded-b-3xl px-6"
         >
-          <View className="items-center">
-            <Text className="text-white text-3xl px-3 font-extrabold tracking-wide drop-shadow-lg text-center">
-              Powered by a growing community of 10,000+ verified agents.
-            </Text>
-
-            <Text className="text-white text-lg mt-3 text-center opacity-90 px-6 leading-6">
-              Buy, sell, and explore the best local deals. Our trusted sellers
-              help you find your dream car with ease.
-            </Text>
-
-            <View className="mt-4 bg-white/20 px-4 py-1.5 rounded-full">
-              <Text className="text-white font-semibold tracking-wide text-sm">
-                Your Trusted Marketplace
+          <View className="flex-row items-center justify-between">
+            <View className="flex-1 mr-4">
+              <Text className="text-white text-3xl font-extrabold leading-tight">
+                Your premium marketplace for trusted vehicles
               </Text>
+              <Text className="text-white/80 text-base mt-3 leading-6">
+                Curated by verified agents. Bid, buy, or list with confidence.
+              </Text>
+              <View className="flex-row mt-4" style={{ gap: 10 }}>
+                <View className="px-4 py-2 rounded-full bg-white/10 border border-white/20">
+                  <Text className="text-white text-sm font-semibold">24/7 support</Text>
+                </View>
+                <View className="px-4 py-2 rounded-full bg-white/10 border border-white/20">
+                  <Text className="text-white text-sm font-semibold">Secure payments</Text>
+                </View>
+              </View>
             </View>
+            <View className="w-28 h-28 rounded-3xl overflow-hidden border border-white/20 bg-white/10 items-center justify-center">
+              <Image
+                source={require("../../../assets/images/icon.png")}
+                style={{ width: 80, height: 80 }}
+                resizeMode="contain"
+              />
+            </View>
+          </View>
+
+          <View className="flex-row mt-6" style={{ gap: 12 }}>
+            <StatPill label="Verified agents" value="10k+" />
+            <StatPill label="Live auctions" value="120" />
+            <StatPill label="Avg. response" value="<10m" />
           </View>
         </LinearGradient>
 
         {/* Search */}
-        <View className="px-5" style={{ marginTop: -28 }}>
-          <View
-            className="bg-white rounded-lg shadow-lg"
-            style={{ elevation: 4 }}
-          >
-            <TextInput
-              className="py-4 px-5 text-base"
-              placeholder="Find Cars, Bikes and more..."
-              placeholderTextColor="#999"
-              value={searchQuery}
-              onChangeText={setSearchQuery}
-              autoCorrect={false}
-            />
+        <View className="px-5" style={{ marginTop: -36 }}>
+          <View className="bg-white rounded-2xl shadow-lg px-4 py-3 flex-row items-center border border-gray-100">
+            <View className="flex-1">
+              <Text className="text-xs text-gray-400">Search inventory</Text>
+              <TextInput
+                className="py-1 text-base"
+                placeholder="Find cars, bikes, auctions..."
+                placeholderTextColor="#9CA3AF"
+                value={searchQuery}
+                onChangeText={setSearchQuery}
+                autoCorrect={false}
+                returnKeyType="search"
+              />
+            </View>
+            <TouchableOpacity
+              onPress={onSearch}
+              className="px-4 py-2 rounded-full bg-blue-600"
+            >
+              <Text className="text-white font-semibold">Go</Text>
+            </TouchableOpacity>
           </View>
         </View>
 
         {/* Tabs for BUY / SELL */}
-        <View
-          className="mx-5 mt-4 bg-white rounded-lg shadow-sm"
-          style={{ elevation: 2 }}
-        >
+        <View className="mx-5 mt-5 bg-white rounded-2xl shadow-sm border border-gray-100">
           <View className="flex-row">
             <TouchableOpacity
               onPress={() => setTab("buy")}
-              className={`flex-1 py-3 items-center border-b-2 ${
-                tab === "buy" ? "border-blue-600" : "border-transparent"
+              className={`flex-1 py-3 items-center rounded-l-2xl ${
+                tab === "buy" ? "bg-blue-50" : ""
               }`}
             >
               <Text
-                className={`font-semibold ${tab === "buy" ? "text-blue-600" : "text-gray-500"}`}
+                className={`font-semibold ${tab === "buy" ? "text-blue-700" : "text-gray-500"}`}
               >
                 BUY
               </Text>
@@ -335,12 +362,12 @@ export default function Index() {
 
             <TouchableOpacity
               onPress={() => setTab("sell")}
-              className={`flex-1 py-3 items-center border-b-2 ${
-                tab === "sell" ? "border-blue-600" : "border-transparent"
+              className={`flex-1 py-3 items-center rounded-r-2xl ${
+                tab === "sell" ? "bg-blue-50" : ""
               }`}
             >
               <Text
-                className={`font-semibold ${tab === "sell" ? "text-blue-600" : "text-gray-500"}`}
+                className={`font-semibold ${tab === "sell" ? "text-blue-700" : "text-gray-500"}`}
               >
                 SELL
               </Text>
@@ -349,119 +376,68 @@ export default function Index() {
 
           {tab === "buy" ? (
             <View className="p-4">
-              {/* OLX Style Horizontal Filter Chips */}
               <ScrollView
                 horizontal
                 showsHorizontalScrollIndicator={false}
                 className="mb-3"
                 contentContainerStyle={{ paddingRight: 20 }}
               >
-                {/* City Filter */}
-                <TouchableOpacity
+                <FilterChip
+                  label={city || "City"}
+                  active={!!city}
                   onPress={() => {
                     setActiveFilterTab("City");
                     setShowFilterModal(true);
                   }}
-                  className={`mr-2 px-4 py-2.5 rounded-full border flex-row items-center ${
-                    city
-                      ? "bg-blue-50 border-blue-600"
-                      : "bg-white border-gray-300"
-                  }`}
-                >
-                  <Text
-                    className={`text-sm font-medium ${city ? "text-blue-600" : "text-gray-700"}`}
-                  >
-                    {city || "City"}
-                  </Text>
-                  <Text
-                    className={`ml-1 text-xs ${city ? "text-blue-600" : "text-gray-400"}`}
-                  >
-                    ▼
-                  </Text>
-                </TouchableOpacity>
-
-                {/* Brand Filter */}
-                <TouchableOpacity
+                />
+                <FilterChip
+                  label={brand || "Brand"}
+                  active={!!brand}
                   onPress={() => {
                     setActiveFilterTab("Brand");
                     setShowFilterModal(true);
                   }}
-                  className={`mr-2 px-4 py-2.5 rounded-full border flex-row items-center ${
-                    brand
-                      ? "bg-blue-50 border-blue-600"
-                      : "bg-white border-gray-300"
-                  }`}
-                >
-                  <Text
-                    className={`text-sm font-medium ${brand ? "text-blue-600" : "text-gray-700"}`}
-                  >
-                    {brand || "Brand"}
-                  </Text>
-                  <Text
-                    className={`ml-1 text-xs ${brand ? "text-blue-600" : "text-gray-400"}`}
-                  >
-                    ▼
-                  </Text>
-                </TouchableOpacity>
-
-                {/* Budget Filter */}
-                <TouchableOpacity
+                />
+                <FilterChip
+                  label={budget ? budgets.find((b) => b.value === budget)?.label || "Budget" : "Budget"}
+                  active={!!budget}
                   onPress={() => {
                     setActiveFilterTab("Budget");
                     setShowFilterModal(true);
                   }}
-                  className={`mr-2 px-4 py-2.5 rounded-full border flex-row items-center ${
-                    budget
-                      ? "bg-blue-50 border-blue-600"
-                      : "bg-white border-gray-300"
-                  }`}
-                >
-                  <Text
-                    className={`text-sm font-medium ${budget ? "text-blue-600" : "text-gray-700"}`}
-                  >
-                    {budget
-                      ? budgets.find((b) => b.value === budget)?.label
-                      : "Budget"}
-                  </Text>
-                  <Text
-                    className={`ml-1 text-xs ${budget ? "text-blue-600" : "text-gray-400"}`}
-                  >
-                    ▼
-                  </Text>
-                </TouchableOpacity>
+                />
 
-                {/* Clear All (only when filters active) */}
                 {hasActiveFilters && (
                   <TouchableOpacity
                     onPress={clearFilters}
-                    className="px-4 py-2.5 rounded-full bg-gray-100 border border-gray-300"
+                    className="px-4 py-2.5 rounded-full bg-gray-100 border border-gray-200 ml-1"
                   >
                     <Text className="text-sm font-medium text-gray-700">
-                      Clear All ×
+                      Clear
                     </Text>
                   </TouchableOpacity>
                 )}
               </ScrollView>
 
-              {/* Search Button */}
               <TouchableOpacity
                 onPress={onSearch}
-                className="py-3.5 rounded-lg items-center bg-blue-600"
+                className="py-3.5 rounded-xl items-center bg-blue-600"
                 style={{ elevation: 2 }}
               >
-                <Text className="text-white font-bold text-base">SEARCH</Text>
+                <Text className="text-white font-bold text-base">Refine results</Text>
               </TouchableOpacity>
             </View>
           ) : (
             <View className="p-4">
               <TouchableOpacity
                 onPress={() => router.push("/(drawer)/Sell")}
-                className="py-3.5 rounded-lg items-center bg-blue-600"
+                className="py-3.5 rounded-xl items-center bg-blue-600"
                 style={{ elevation: 2 }}
               >
                 <Text className="text-white font-bold text-base">
-                  SELL YOUR CAR
+                  List your vehicle
                 </Text>
+                <Text className="text-white/80 text-xs mt-1">Free listing, verified buyers</Text>
               </TouchableOpacity>
             </View>
           )}
@@ -473,246 +449,104 @@ export default function Index() {
           onClose={() => setShowFilterModal(false)}
         />
 
-        {/* Results Count (OLX Style) */}
-        {hasActiveFilters && (
-          <View className="px-5 py-3">
-            <Text className="text-sm text-gray-600">
-              Showing {featured.length} result{featured.length !== 1 ? "s" : ""}
+        {/* Results Count */}
+        <View className="px-5 py-4 flex-row items-center justify-between">
+          <View>
+            <Text className="text-xl font-bold text-gray-900">Discover</Text>
+            <Text className="text-sm text-gray-500">Curated inventory matched to your filters</Text>
+          </View>
+          <View className="px-3 py-2 rounded-full bg-blue-50 border border-blue-100">
+            <Text className="text-blue-700 font-semibold text-sm">
+              {filteredVehicles.length} listings
             </Text>
+          </View>
+        </View>
+
+        {error && (
+          <View className="mx-5 mb-4 p-4 bg-red-50 border border-red-200 rounded-xl">
+            <Text className="text-red-700 font-semibold">Cannot reach backend</Text>
+            <Text className="text-red-600 text-sm mt-1">
+              {error}. Check API_BASE and that your device can reach the server over LAN.
+            </Text>
+            <Text className="text-red-500 text-xs mt-2">Base URL: {API_BASE}</Text>
           </View>
         )}
 
-        {/* Featured Listings Horizontal */}
-        <View className="mt-4">
-          <View className="flex-row justify-between items-center px-5 mb-3">
-            <Text className="text-lg font-bold text-gray-900">
-              Featured Listings
-            </Text>
-            <TouchableOpacity>
-              <Text className="text-blue-600 text-sm font-semibold">
-                SEE ALL
-              </Text>
-            </TouchableOpacity>
-          </View>
+        {/* Featured Listings */}
+        <SectionHeader
+          title="Featured picks"
+          actionLabel="See all"
+          onAction={() => router.push("/Bikes")}
+        />
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 10 }}
+        >
+          {loading
+            ? Array.from({ length: 3 }).map((_, idx) => <SkeletonCard key={idx} />)
+            : filteredVehicles
+                .filter((item: any) => item.vehicleType === "car")
+                .slice(0, 10)
+                .map((item: any) => (
+                  <VehicleCard key={item.id} item={item} router={router} compact />
+                ))}
+        </ScrollView>
 
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={{ paddingHorizontal: 20 }}
-          >
-            {featured.map((item: any) => {
-              return (
-                item.vehicleType === "car" && (
-                  <Pressable
-                    key={item.id}
-                    onPress={() =>
-                      router.push(`/components/CarDetails?id=${item.id}`)
-                    }
-                    className="w-44 mr-3 bg-white rounded-tr-3xl rounded-bl-3xl overflow-hidden border-[0.5px]"
-                    style={{
-                      elevation: 2,
-                      shadowColor: "#000",
-                      shadowOffset: { width: 0, height: 1 },
-                      shadowOpacity: 0.1,
-                      shadowRadius: 2,
-                    }}
-                  >
-                    <Image
-                      source={{ uri: item.images?.[0] }}
-                      style={{ width: "100%", height: 100 }}
-                      resizeMode="cover"
-                    />
-
-                    <View className="p-3">
-                      <Text className="font-bold text-base text-gray-900 mb-1">
-                        {item.title}
-                      </Text>
-
-                      <Text
-                        className="text-md text-gray-700 mb-2"
-                        numberOfLines={2}
-                      >
-                        ₹{item.price.toLocaleString("en-IN")}
-                        {item.price > 100000 ? "L" : "K"}
-                      </Text>
-
-                      <Text className="text-xs text-gray-500">
-                        {item.location}
-                      </Text>
-                    </View>
-                  </Pressable>
-                )
-              );
-            })}
-          </ScrollView>
-        </View>
-
-        {/* CAR CHEMISTRY SECTION */}
-        <View className="py-10 bg-gray-50 mt-8 px-4">
+        {/* Value props */}
+        <View className="py-10 bg-white mt-4 px-5 rounded-3xl mx-5 shadow-sm border border-gray-100">
           <Text className="text-center text-2xl font-bold text-gray-900 mb-2">
-            Why Choose Us
+            Built for serious buyers & sellers
           </Text>
           <Text className="text-center text-gray-600 mb-8 px-4">
-            The perfect platform for buying and selling vehicles
+            From instant bidding to concierge paperwork, we cover the hard parts so you don’t have to.
           </Text>
 
-          <View
-            className="flex-row flex-wrap justify-center"
-            style={{ gap: 20 }}
-          >
-            <View className="w-36 items-center">
-              <View className="bg-purple-100 rounded-2xl w-16 h-16 items-center justify-center mb-3">
-                <Text className="text-3xl">💰</Text>
-              </View>
-              <Text className="font-bold text-gray-900 text-center mb-1">
-                Best Price
-              </Text>
-              <Text className="text-gray-600 text-xs text-center">
-                Get the best deals on quality vehicles
-              </Text>
-            </View>
-
-            <View className="w-36 items-center">
-              <View className="bg-orange-100 rounded-2xl w-16 h-16 items-center justify-center mb-3">
-                <Text className="text-3xl">⚡</Text>
-              </View>
-              <Text className="font-bold text-gray-900 text-center mb-1">
-                Quick & Easy
-              </Text>
-              <Text className="text-gray-600 text-xs text-center">
-                Buy and sell with ease
-              </Text>
-            </View>
-
-            <View className="w-36 items-center">
-              <View className="bg-blue-100 rounded-2xl w-16 h-16 items-center justify-center mb-3">
-                <Text className="text-3xl">✓</Text>
-              </View>
-              <Text className="font-bold text-gray-900 text-center mb-1">
-                100% Verified
-              </Text>
-              <Text className="text-gray-600 text-xs text-center">
-                All vehicles verified
-              </Text>
-            </View>
-
-            <View className="w-36 items-center">
-              <View className="bg-green-100 rounded-2xl w-16 h-16 items-center justify-center mb-3">
-                <Text className="text-3xl">📋</Text>
-              </View>
-              <Text className="font-bold text-gray-900 text-center mb-1">
-                Easy Paperwork
-              </Text>
-              <Text className="text-gray-600 text-xs text-center">
-                We handle documentation
-              </Text>
-            </View>
+          <View className="flex-row flex-wrap justify-center" style={{ gap: 18 }}>
+            <ValueCard emoji="🔒" title="Escrow-ready" desc="Secure payments and verified documentation" />
+            <ValueCard emoji="⚡" title="Fast approvals" desc="Finance-friendly listings with quick checks" />
+            <ValueCard emoji="🛠️" title="Inspector network" desc="Pre-purchase inspections by certified partners" />
+            <ValueCard emoji="🛰️" title="Live tracking" desc="Watch bids and inquiries in real time" />
           </View>
         </View>
 
-        {/* All Featured Vehicles Grid */}
-        <View className="px-5 mt-6">
-          <View className="flex-row items-center justify-between mb-4">
-            <Text className="text-xl font-bold text-gray-900">
-              All Vehicles
-            </Text>
-            <TouchableOpacity onPress={() => router.push("/Bikes")}>
-              <Text className="text-blue-600 text-sm font-semibold">
-                VIEW ALL
-              </Text>
-            </TouchableOpacity>
-          </View>
-
-          <FlatList
-            data={featured}
-            keyExtractor={(i: any) => i.id}
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            renderItem={({ item }: any) => (
-              <Pressable
-                onPress={() => {
-                  if (item.vehicleType === "bike") {
-                    router.push(`/components/BikeDetails?id=${item.id}`);
-                  } else {
-                    router.push(`/components/CarDetails?id=${item.id}`);
-                  }
-                }}
-                className="w-72 mr-4 bg-white rounded-tr-3xl rounded-bl-3xl overflow-hidden border-[0.5px]"
-                style={{
-                  elevation: 2,
-                  shadowColor: "#000",
-                  shadowOffset: { width: 0, height: 1 },
-                  shadowOpacity: 0.1,
-                  shadowRadius: 2,
-                }}
-              >
-                <Image
-                  source={{ uri: item.images?.[0] }}
-                  style={{ width: "100%", height: 160 }}
-                />
-                <View className="p-3">
-                  <View className="mb-2">
-                    <Text className="font-bold text-xl text-gray-900 mb-1">
-                      {item.title}
-                    </Text>
-                    <Text
-                      className="font-medium text-gray-800"
-                      numberOfLines={1}
-                    >
-                      ₹{item.price} Lakhs
-                    </Text>
-                  </View>
-                  <View className="flex-row items-center">
-                    <Text className="text-sm text-gray-500 mb-2">
-                      {item.year}
-                    </Text>
-                    <Text className="text-sm text-gray-500 mb-2 mx-1">•</Text>
-                    <Text className="text-sm text-gray-500 mb-2">
-                      {item.kilometersDriven}km
-                    </Text>
-                    <Text className="text-sm text-gray-500 mb-2 mx-1">•</Text>
-                    <Text className="text-sm text-gray-500 mb-2">
-                      {item.fuelType.toUpperCase()}
-                    </Text>
-                  </View>
-                  <View className="flex-row justify-between items-center pt-2 border-t border-gray-100">
-                    <Text className="text-sm text-gray-600">
-                      {item.location}
-                    </Text>
-                    <TouchableOpacity
-                      onPress={() => {
-                        if (item.isAuction) {
-                          router.push(
-                            `/components/Auctionroom?id=${item.id}`
-                          );
-                        } else if (item.vehicleType === "bike") {
-                          router.push(`/components/BikeDetails?id=${item.id}`);
-                        } else {
-                          router.push(`/components/CarDetails?id=${item.id}`);
-                        }
-                      }}
-                    >
-                      <Text className="text-blue-600 font-semibold text-sm">
-                        {item.isAuction ? "BID NOW" : "VIEW DETAILS"}
-                      </Text>
-                    </TouchableOpacity>
-                  </View>
-                </View>
-              </Pressable>
-            )}
-            contentContainerStyle={{ paddingBottom: 10 }}
-          />
-        </View>
+        {/* All Vehicles */}
+        <SectionHeader
+          title="All vehicles"
+          actionLabel="View catalog"
+          onAction={() => router.push("/Bikes")}
+        />
+        <FlatList
+          data={filteredVehicles}
+          keyExtractor={(i: any) => i.id}
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          renderItem={({ item }: any) => <VehicleCard item={item} router={router} />}
+          contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 16 }}
+          ListEmptyComponent={
+            loading ? null : (
+              <View className="mx-5 mt-2 p-4 rounded-2xl bg-gray-100">
+                <Text className="text-gray-700 font-semibold">No vehicles match these filters.</Text>
+                <Text className="text-gray-600 text-sm mt-1">Try clearing filters or adjust your budget.</Text>
+              </View>
+            )
+          }
+        />
 
         {/* Footer */}
-        <View className="bg-gray-900 py-8 mt-8 px-6">
+        <View className="bg-gray-900 py-8 mt-8 px-6 rounded-t-3xl">
           <Text className="text-white text-xl font-bold mb-2">Hand2Mart</Text>
           <Text className="text-gray-400 text-sm mb-4">
-            Your trusted marketplace for quality used cars and bikes.
+            Premium marketplace for certified cars and bikes.
           </Text>
-          <View className="border-t border-gray-700 pt-4">
-            <Text className="text-gray-500 text-xs">
-              © 2024 Hand2Mart. All rights reserved.
+          <View className="flex-row" style={{ gap: 14 }}>
+            <Text className="text-gray-400 text-xs">Privacy</Text>
+            <Text className="text-gray-400 text-xs">Terms</Text>
+            <Text className="text-gray-400 text-xs">Support</Text>
+          </View>
+          <View className="border-t border-gray-800 pt-4 mt-4">
+            <Text className="text-gray-600 text-xs">
+              © 2026 Hand2Mart. Ship-ready for production.
             </Text>
           </View>
         </View>
@@ -724,3 +558,105 @@ export default function Index() {
 const styles = StyleSheet.create({
   // using className + inline styles
 });
+
+const FilterChip = ({ label, active, onPress }: { label: string; active: boolean; onPress: () => void }) => (
+  <TouchableOpacity
+    onPress={onPress}
+    className={`mr-2 px-4 py-2.5 rounded-full border flex-row items-center ${
+      active ? "bg-blue-50 border-blue-600" : "bg-white border-gray-200"
+    }`}
+  >
+    <Text className={`text-sm font-medium ${active ? "text-blue-700" : "text-gray-700"}`}>{label}</Text>
+    <Text className={`ml-1 text-xs ${active ? "text-blue-600" : "text-gray-400"}`}>▼</Text>
+  </TouchableOpacity>
+);
+
+const SectionHeader = ({ title, actionLabel, onAction }: { title: string; actionLabel?: string; onAction?: () => void }) => (
+  <View className="flex-row items-center justify-between px-5 mt-6 mb-3">
+    <Text className="text-xl font-bold text-gray-900">{title}</Text>
+    {actionLabel && onAction && (
+      <TouchableOpacity onPress={onAction}>
+        <Text className="text-blue-600 text-sm font-semibold">{actionLabel}</Text>
+      </TouchableOpacity>
+    )}
+  </View>
+);
+
+const StatPill = ({ label, value }: { label: string; value: string }) => (
+  <View className="px-4 py-3 rounded-2xl bg-white/10 border border-white/20">
+    <Text className="text-white text-lg font-extrabold">{value}</Text>
+    <Text className="text-white/80 text-xs mt-1">{label}</Text>
+  </View>
+);
+
+const ValueCard = ({ emoji, title, desc }: { emoji: string; title: string; desc: string }) => (
+  <View className="w-40 bg-gray-50 rounded-2xl p-4 border border-gray-100">
+    <Text className="text-2xl mb-2">{emoji}</Text>
+    <Text className="font-semibold text-gray-900 mb-1">{title}</Text>
+    <Text className="text-gray-600 text-xs leading-5">{desc}</Text>
+  </View>
+);
+
+const SkeletonCard = () => (
+  <View
+    className="w-48 mr-3 bg-gray-200 rounded-2xl"
+    style={{ height: 200, opacity: 0.7 }}
+  />
+);
+
+const VehicleCard = ({ item, router, compact = false }: { item: any; router: any; compact?: boolean }) => (
+  <Pressable
+    onPress={() => {
+      if (item.vehicleType === "bike") {
+        router.push(`/components/BikeDetails?id=${item.id}`);
+      } else {
+        router.push(`/components/CarDetails?id=${item.id}`);
+      }
+    }}
+    className={`bg-white overflow-hidden border border-gray-100 ${compact ? "w-48 mr-3 rounded-2xl" : "w-72 mr-4 rounded-3xl"}`}
+    style={{
+      elevation: 3,
+      shadowColor: "#000",
+      shadowOffset: { width: 0, height: 1 },
+      shadowOpacity: 0.08,
+      shadowRadius: 3,
+    }}
+  >
+    <Image
+      source={{ uri: item.images?.[0] }}
+      style={{ width: "100%", height: compact ? 120 : 170 }}
+      resizeMode="cover"
+    />
+    <View className="p-3">
+      <Text className="font-bold text-base text-gray-900" numberOfLines={1}>
+        {item.title}
+      </Text>
+      <Text className="text-gray-800 font-semibold mt-1">
+        ₹{(item.price || 0).toLocaleString("en-IN")}
+      </Text>
+      <View className="flex-row items-center mt-1">
+        {item.year && <Text className="text-xs text-gray-500">{item.year}</Text>}
+        {item.kilometersDriven && <Text className="text-xs text-gray-500 mx-1">•</Text>}
+        {item.kilometersDriven && <Text className="text-xs text-gray-500">{item.kilometersDriven} km</Text>}
+      </View>
+      <View className="flex-row justify-between items-center pt-2">
+        <Text className="text-xs text-gray-600">{item.location}</Text>
+        <TouchableOpacity
+          onPress={() => {
+            if (item.isAuction) {
+              router.push(`/components/Auctionroom?id=${item.id}`);
+            } else if (item.vehicleType === "bike") {
+              router.push(`/components/BikeDetails?id=${item.id}`);
+            } else {
+              router.push(`/components/CarDetails?id=${item.id}`);
+            }
+          }}
+        >
+          <Text className="text-blue-600 font-semibold text-xs">
+            {item.isAuction ? "BID NOW" : "VIEW"}
+          </Text>
+        </TouchableOpacity>
+      </View>
+    </View>
+  </Pressable>
+);
