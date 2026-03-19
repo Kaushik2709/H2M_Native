@@ -32,6 +32,15 @@ export interface Auction {
   winner?: any;
   isDepositRequired?: boolean;
   depositAmount?: number;
+  inspectionReport?: {
+    overallScore: number;
+    summary: string;
+    reportUrl: string;
+    engineScore?: number;
+    exteriorScore?: number;
+    interiorScore?: number;
+    tyreScore?: number;
+  };
   createdAt: string;
   updatedAt: string;
 }
@@ -339,6 +348,90 @@ export const auctionService = {
     } catch (error: any) {
       console.error('Error creating auction:', error);
       return { success: false, error: error.message || 'Failed to create auction' };
+    }
+  },
+
+  // ============================================================================
+  // LIVE AUCTION METHODS (Go Server Bridge)
+  // ============================================================================
+
+  /**
+   * Get live auction server status
+   */
+  getLiveServerStatus: async (): Promise<ApiResponse<any>> => {
+    try {
+      const response = await makeRequest('/api/auctions/live/status');
+      const data = await response.json();
+      return data;
+    } catch (error) {
+      console.error('Error fetching live server status:', error);
+      return { success: false, error: 'Failed to fetch live server status' };
+    }
+  },
+
+  /**
+   * Get current live auction state
+   */
+  getLiveAuctionState: async (): Promise<ApiResponse<any>> => {
+    try {
+      const response = await makeRequest('/api/auctions/live/state');
+      const data = await response.json();
+      return data;
+    } catch (error) {
+      console.error('Error fetching live auction state:', error);
+      return { success: false, error: 'Failed to fetch live auction state' };
+    }
+  },
+
+  /**
+   * Place bid on live auction
+   */
+  placeLiveBid: async (amount: number): Promise<ApiResponse<any>> => {
+    try {
+      const response = await makeRequest('/api/auctions/live/bid', {
+        method: 'POST',
+        body: JSON.stringify({ amount }),
+      });
+      const data = await response.json();
+      return data;
+    } catch (error) {
+      console.error('Error placing live bid:', error);
+      return { success: false, error: 'Failed to place live bid' };
+    }
+  },
+
+  /**
+   * Start live auction (admin only)
+   */
+  startLiveAuction: async (itemName: string, startingPrice: number): Promise<ApiResponse<any>> => {
+    try {
+      const response = await makeRequest('/api/auctions/live/start', {
+        method: 'POST',
+        body: JSON.stringify({ itemName, startingPrice }),
+      });
+      const data = await response.json();
+      return data;
+    } catch (error) {
+      console.error('Error starting live auction:', error);
+      return { success: false, error: 'Failed to start live auction' };
+    }
+  },
+
+  // ============================================================================
+  // ADMIN METHODS
+  // ============================================================================
+
+  /**
+   * Get auction statistics
+   */
+  getAuctionStats: async (): Promise<ApiResponse<any>> => {
+    try {
+      const response = await makeRequest('/api/auctions/admin/stats');
+      const data = await response.json();
+      return data;
+    } catch (error) {
+      console.error('Error fetching auction stats:', error);
+      return { success: false, error: 'Failed to fetch auction stats' };
     }
   },
 };

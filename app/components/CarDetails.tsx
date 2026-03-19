@@ -1,5 +1,5 @@
 import { LinearGradient } from "expo-linear-gradient";
-import { useLocalSearchParams } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
@@ -9,19 +9,28 @@ import {
   StatusBar,
   Text,
   TouchableOpacity,
-  View
+  View,
+  Alert,
 } from "react-native";
-import { API_BASE } from "../../config/api";
+import { vehicleService } from "../../services/vehicle.service";
+import { bookingService } from "../../services/booking.service";
+import { testDriveService } from "../../services/testdrive.service";
+import { wishlistService } from "../../services/wishlist.service";
+import { reviewService, Review } from "../../services/review.service";
 
 const { width, height } = Dimensions.get("window");
 
 const CarDetails = () => {
-  const { id } = useLocalSearchParams();
+  const { id } = useLocalSearchParams() as { id: string };
+  const router = useRouter();
   const [car, setCar] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState("overview");
   const [imageIndex, setImageIndex] = useState(0);
+  const [reviews, setReviews] = useState<Review[]>([]);
+  const [isWishlisted, setIsWishlisted] = useState(false);
+  const [isActionLoading, setIsActionLoading] = useState(false);
   const scrollViewRef = useRef<ScrollView>(null);
 
   useEffect(() => {
@@ -29,12 +38,16 @@ const CarDetails = () => {
       try {
         setLoading(true);
         setError(null);
-        const res = await fetch(`${API_BASE}/api/vehicles/${id}`);
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const json = await res.json();
-        setCar(json.data);
+        const response = await vehicleService.getVehicleById(id);
+        if (response.success && response.data) {
+          setCar(response.data);
+          // Fetch additional data
+          fetchReviews();
+          checkWishlist();
+        } else {
+          throw new Error(response.error || "Failed to load car");
+        }
       } catch (err) {
-        // eslint-disable-next-line no-console
         console.error("Failed to load car", err);
         setError((err as Error)?.message ?? "Unknown error");
       } finally {
@@ -45,12 +58,70 @@ const CarDetails = () => {
     if (id) fetchCarData();
   }, [id]);
 
+  const fetchReviews = async () => {
+    const response = await reviewService.getVehicleReviews(id);
+    if (response.success && response.data) {
+      setReviews(response.data);
+    }
+  };
+
+  const checkWishlist = async () => {
+    const response = await wishlistService.getWishlist();
+    if (response.success && response.data) {
+      setIsWishlisted(response.data.some((item: any) => item.vehicleId === id));
+    }
+  };
+
+  const handleToggleWishlist = async () => {
+    setIsActionLoading(true);
+    try {
+      if (isWishlisted) {
+        const res = await wishlistService.removeFromWishlist(id);
+        if (res.success) setIsWishlisted(false);
+      } else {
+        const res = await wishlistService.addToWishlist(id);
+        if (res.success) setIsWishlisted(true);
+      }
+    } finally {
+      setIsActionLoading(false);
+    }
+  };
+
+  const handleBookNow = () => {
+    Alert.alert(
+      "Confirm Booking",
+      `Would you like to book ${car.title} for ₹${car.price.toLocaleString()}?`,
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Confirm",
+          onPress: async () => {
+            const res = await bookingService.createBooking({
+              vehicleId: id,
+              bookingAmount: car.price * 0.1, // 10% booking amount example
+            });
+            if (res.success) {
+              Alert.alert("Success", "Vehicle booked successfully!");
+            } else {
+              Alert.alert("Error", res.error || "Failed to book vehicle");
+            }
+          },
+        },
+      ],
+    );
+  };
+
+  const handleScheduleTestDrive = () => {
+    // Navigate to a scheduling screen or show a modal
+    Alert.alert("Test Drive", "Navigate to test drive scheduling screen");
+  };
+
   // Scroll to specific image when indicator is tapped
   useEffect(() => {
     if (scrollViewRef.current && car?.images?.length > 0) {
       scrollViewRef.current.scrollTo({
         x: imageIndex * width,
-        animated: true
+        animated: true,
       });
     }
   }, [imageIndex]);
@@ -115,12 +186,12 @@ const CarDetails = () => {
             colors={["transparent", "rgba(0,0,0,0.7)"]}
             className="absolute bottom-0 left-0 right-0 h-36 pointer-events-none"
           />
-          
+
           {/* Image Counter Badge */}
           <View className="absolute top-12 left-4">
-            <View 
+            <View
               style={{
-                backgroundColor: 'rgba(0,0,0,0.5)',
+                backgroundColor: "rgba(0,0,0,0.5)",
                 paddingHorizontal: 12,
                 paddingVertical: 6,
                 borderRadius: 12,
@@ -131,7 +202,7 @@ const CarDetails = () => {
               </Text>
             </View>
           </View>
-          
+
           {/* Image Indicators */}
           {car.images?.length > 1 && (
             <View className="absolute bottom-5 left-0 right-0 flex-row justify-center gap-2">
@@ -142,13 +213,25 @@ const CarDetails = () => {
                   style={{
                     height: 8,
                     borderRadius: 4,
-                    backgroundColor: imageIndex === idx ? '#ffffff' : 'rgba(255,255,255,0.5)',
+                    backgroundColor:
+                      imageIndex === idx ? "#ffffff" : "rgba(255,255,255,0.5)",
                     width: imageIndex === idx ? 24 : 8,
                   }}
                 />
               ))}
             </View>
           )}
+
+          {/* Wishlist Toggle */}
+          <View className="absolute top-12 right-4">
+            <TouchableOpacity
+              onPress={handleToggleWishlist}
+              disabled={isActionLoading}
+              className="bg-white/80 p-3 rounded-full"
+            >
+              <Text className="text-2xl">{isWishlisted ? "❤️" : "🤍"}</Text>
+            </TouchableOpacity>
+          </View>
         </View>
 
         {/* Title Section */}
@@ -156,22 +239,23 @@ const CarDetails = () => {
           <Text className="text-3xl font-bold text-slate-900 mb-3">
             {car.title}
           </Text>
-          
+
           {/* Price Badge */}
           <View className="mb-3">
-            <View className="bg-blue-600 px-4 py-2 rounded-full self-start"
-            >
+            <View className="bg-blue-600 px-4 py-2 rounded-full self-start">
               <Text className="text-2xl font-bold text-white">
                 ₹{car.price.toLocaleString("en-IN")}
               </Text>
             </View>
-              {car.negotiable && (
-                <View className="mt-1 self-start">
-                  <View className="border-[0.5px] border-black ml-1 px-3 py-1 rounded-full">
-                    <Text className="text-sm text-black font-semibold">Negotiable</Text>
-                  </View>
+            {car.negotiable && (
+              <View className="mt-1 self-start">
+                <View className="border-[0.5px] border-black ml-1 px-3 py-1 rounded-full">
+                  <Text className="text-sm text-black font-semibold">
+                    Negotiable
+                  </Text>
                 </View>
-              )}
+              </View>
+            )}
           </View>
           <View className="flex-row gap-2">
             <View className="bg-slate-100 px-3 py-1.5 rounded-lg">
@@ -194,40 +278,28 @@ const CarDetails = () => {
 
         {/* Quick Stats Cards */}
         <View className="flex-row px-4 gap-3 mt-2">
-          <StatCard 
-            icon="🏃" 
-            label="Driven" 
-            value={`${car.kilometersDriven} km`} 
+          <StatCard
+            icon="🏃"
+            label="Driven"
+            value={`${car.kilometersDriven} km`}
           />
-          <StatCard 
-            icon="📍" 
-            label="Location" 
-            value={car.city} 
-          />
-          <StatCard 
-            icon="👁️" 
-            label="Views" 
-            value={car.viewsCount} 
-          />
+          <StatCard icon="📍" label="Location" value={car.city} />
+          <StatCard icon="👁️" label="Views" value={car.viewsCount} />
         </View>
 
         {/* Tabs */}
         <View className="flex-row bg-white mt-2 px-4 gap-2">
-          {["overview", "features", "details"].map(tab => (
+          {["overview", "features", "details", "reviews"].map((tab) => (
             <TouchableOpacity
               key={tab}
               onPress={() => setActiveTab(tab)}
               className={`flex-1 py-4 items-center border-b-2 ${
-                activeTab === tab 
-                  ? "border-blue-600" 
-                  : "border-transparent"
+                activeTab === tab ? "border-blue-600" : "border-transparent"
               }`}
             >
               <Text
                 className={`text-base font-semibold ${
-                  activeTab === tab 
-                    ? "text-blue-600" 
-                    : "text-slate-400"
+                  activeTab === tab ? "text-blue-600" : "text-slate-400"
                 }`}
               >
                 {tab.charAt(0).toUpperCase() + tab.slice(1)}
@@ -305,9 +377,55 @@ const CarDetails = () => {
               <DetailRow label="Year" value={car.year} />
               <DetailRow label="Fuel Type" value={car.fuelType} />
               <DetailRow label="Transmission" value={car.transmission} />
-              <DetailRow label="KM Driven" value={`${car.kilometersDriven} km`} />
+              <DetailRow
+                label="KM Driven"
+                value={`${car.kilometersDriven} km`}
+              />
               <DetailRow label="City" value={car.city} />
               <DetailRow label="State" value={car.state} />
+            </View>
+          )}
+
+          {activeTab === "reviews" && (
+            <View className="bg-white rounded-2xl p-5 shadow-sm">
+              <View className="flex-row justify-between items-center mb-4">
+                <Text className="text-lg font-bold text-slate-900">
+                  ⭐ Customer Reviews
+                </Text>
+                <TouchableOpacity
+                  onPress={() => Alert.alert("Review", "Add review logic")}
+                  className="bg-blue-100 px-3 py-1 rounded-full"
+                >
+                  <Text className="text-blue-600 text-xs font-bold">+ Add</Text>
+                </TouchableOpacity>
+              </View>
+              {reviews.length === 0 ? (
+                <Text className="text-slate-400 text-center py-4">
+                  No reviews yet
+                </Text>
+              ) : (
+                reviews.map((review) => (
+                  <View
+                    key={review.id}
+                    className="mb-4 border-b border-slate-100 pb-3"
+                  >
+                    <View className="flex-row justify-between items-center mb-1">
+                      <Text className="font-bold text-slate-800">
+                        {review.user?.firstName} {review.user?.lastName}
+                      </Text>
+                      <Text className="text-yellow-500">
+                        {"⭐".repeat(review.rating)}
+                      </Text>
+                    </View>
+                    <Text className="text-slate-600 text-sm">
+                      {review.content}
+                    </Text>
+                    <Text className="text-slate-400 text-[10px] mt-1">
+                      {new Date(review.createdAt).toLocaleDateString()}
+                    </Text>
+                  </View>
+                ))
+              )}
             </View>
           )}
         </View>
@@ -315,18 +433,28 @@ const CarDetails = () => {
         <View className="h-24" />
       </ScrollView>
 
-      {/* Floating Action Button */}
-      <View className="absolute bottom-0 left-0 right-0 p-4 bg-transparent">
-        <TouchableOpacity className="rounded-2xl overflow-hidden shadow-2xl">
+      {/* Floating Action Buttons */}
+      <View className="absolute bottom-0 left-0 right-0 p-4 bg-white/90 border-t border-slate-200 flex-row gap-3">
+        <TouchableOpacity
+          className="flex-1 rounded-xl overflow-hidden shadow-lg"
+          onPress={handleScheduleTestDrive}
+        >
+          <View className="bg-slate-800 py-4 items-center">
+            <Text className="text-white font-bold">Schedule Test Drive</Text>
+          </View>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          className="flex-1 rounded-xl overflow-hidden shadow-lg"
+          onPress={handleBookNow}
+        >
           <LinearGradient
             colors={["#3b82f6", "#2563eb"]}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
             className="py-4 items-center"
           >
-            <Text className="text-lg font-bold text-white">
-              📞 Contact Owner
-            </Text>
+            <Text className="text-lg font-bold text-white">Book Now</Text>
           </LinearGradient>
         </TouchableOpacity>
       </View>
@@ -337,9 +465,7 @@ const CarDetails = () => {
 const StatCard = ({ icon, label, value }: any) => (
   <View className="flex-1 bg-white rounded-2xl p-4 items-center shadow-sm">
     <Text className="text-3xl mb-2">{icon}</Text>
-    <Text className="text-base font-bold text-slate-900 mb-1">
-      {value}
-    </Text>
+    <Text className="text-base font-bold text-slate-900 mb-1">{value}</Text>
     <Text className="text-xs text-slate-500">{label}</Text>
   </View>
 );
@@ -347,15 +473,17 @@ const StatCard = ({ icon, label, value }: any) => (
 const FeatureItem = ({ icon, title, available }: any) => (
   <View className="flex-row items-center py-3 border-b border-slate-100 gap-3">
     <Text className="text-2xl">{icon}</Text>
-    <Text className="flex-1 text-base text-slate-600 font-medium">
-      {title}
-    </Text>
-    <View className={`px-3 py-1.5 rounded-lg ${
-      available ? "bg-green-100" : "bg-red-100"
-    }`}>
-      <Text className={`text-sm font-semibold ${
-        available ? "text-green-700" : "text-red-700"
-      }`}>
+    <Text className="flex-1 text-base text-slate-600 font-medium">{title}</Text>
+    <View
+      className={`px-3 py-1.5 rounded-lg ${
+        available ? "bg-green-100" : "bg-red-100"
+      }`}
+    >
+      <Text
+        className={`text-sm font-semibold ${
+          available ? "text-green-700" : "text-red-700"
+        }`}
+      >
         {available ? "✓ Yes" : "✗ No"}
       </Text>
     </View>

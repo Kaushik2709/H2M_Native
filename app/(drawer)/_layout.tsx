@@ -55,7 +55,12 @@ export default function Layout() {
           drawerItemStyle: { display: "none" },
         }}
       />
-      
+      <Drawer.Screen
+        name="Notifications"
+        options={{
+          title: "Notifications",
+        }}
+      />
     </Drawer>
   );
 }

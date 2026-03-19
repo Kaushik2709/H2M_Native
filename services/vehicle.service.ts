@@ -59,6 +59,23 @@ export interface CreateVehicleData {
 
 export const vehicleService = {
     /**
+     * Get vehicle by ID
+     */
+    getVehicleById: async (id: string): Promise<ApiResponse<Vehicle>> => {
+        try {
+            const response = await fetch(`${API_BASE}/api/vehicles/${id}`);
+            const data = await response.json();
+            return data;
+        } catch (error: any) {
+            console.error('Error fetching vehicle by ID:', error);
+            return {
+                success: false,
+                error: error.message || 'Failed to fetch vehicle'
+            };
+        }
+    },
+
+    /**
      * Get current user's vehicles
      */
     getMyVehicles: async (): Promise<ApiResponse<Vehicle[]>> => {

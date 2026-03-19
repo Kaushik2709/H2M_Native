@@ -1,15 +1,13 @@
 import { Platform } from "react-native";
 
-const LOCAL_IP = "10.88.56.202"; // ensure no leading/trailing spaces
+// Detects the correct IP based on your network adapter
+// If using an emulator, 10.0.2.2 is standard for localhost access
+const LOCAL_IP = "172.20.155.1"; 
 
 export const API_BASE = Platform.select({
   web: "http://localhost:3001",
-  android: __DEV__
-    ? `http://${LOCAL_IP}:3001` // physical device in dev
-    : `http://${LOCAL_IP}:3001`, // production build
-  ios: __DEV__
-    ? `http://${LOCAL_IP}:3001` // physical device in dev
-    : `http://${LOCAL_IP}:3001`, // production build
+  android: `http://${LOCAL_IP}:3001`,
+  ios: `http://${LOCAL_IP}:3001`,
 });
 
 // Helpful dev-time check: warn if the URL looks malformed
