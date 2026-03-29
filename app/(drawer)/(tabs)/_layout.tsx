@@ -10,42 +10,71 @@ export default function Layout() {
   return (
     <Tabs
       screenOptions={{
-        headerRight: () => (
-          <Pressable onPress={() => router.push("/Profile")}>
-            <FontAwesome
-              name="user-circle"
-              size={30}
-              color="black"
-              style={{ marginRight: 16 }}
-            />
-          </Pressable>
-        ),
         headerLeft: () => (
           <View style={{ flexDirection: "row", alignItems: "center" }}>
             <DrawerToggleButton tintColor="black" />
           </View>
         ),
+        headerRightContainerStyle: { paddingRight: 15 },
+        headerRight: () => (
+          <Pressable
+            onPress={() => router.push("/(drawer)/Notifications")}
+            style={({ pressed }) => ({
+              opacity: pressed ? 0.5 : 1,
+            })}
+          >
+            <FontAwesome name="bell" size={24} color="black" />
+          </Pressable>
+        ),
       }}
     >
-
-
       <Tabs.Screen
         name="index"
         options={{
           title: "Hand2Mart",
-          tabBarLabel: "Cars",
+          tabBarLabel: "HOME",
           tabBarIcon: ({ size, color }) => (
-            <FontAwesome name="car" size={size} color={color} />
+            <FontAwesome name="home" size={size} color={color} />
           ),
         }}
       />
       <Tabs.Screen
-        name="Bikes"
+        name="Auction"
         options={{
-          title: "Hand2Mart",
-          tabBarLabel: "Bikes",
+          title: "Auction",
+          tabBarLabel: "AUCTION",
           tabBarIcon: ({ size, color }) => (
-            <FontAwesome name="motorcycle" size={size} color={color} />
+            <FontAwesome name="gavel" size={size} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="Sell"
+        options={{
+          title: "Sell",
+          tabBarLabel: "SELL",
+          tabBarIcon: ({ size, color }) => (
+            <FontAwesome name="plus-circle" size={size} color={color} />
+          ),
+        }}
+      />
+        <Tabs.Screen
+          name="Bookings"
+          options={{
+            title: "Bookings",
+            tabBarLabel: "BOOKINGS",
+            tabBarIcon: ({ size, color }) => (
+              <FontAwesome name="calendar" size={size} color={color} />
+            ),
+          }}
+        />
+      <Tabs.Screen
+        name="Profile"
+        options={{
+          title: "Profile",
+          tabBarLabel: "PROFILE",
+          tabBarIcon: ({ size, color }) => (
+            <FontAwesome name="user" size={size} color={color} />
           ),
         }}
       />

@@ -10,15 +10,17 @@ export default function Layout() {
     <Drawer
       screenOptions={{
         headerRight: () => (
-          <Pressable onPress={() => router.push("/Profile")}>
-            <FontAwesome
-              name="user-circle"
-              size={30}
-              color="black"
-              style={{ marginRight: 16 }}
-            />
+          <Pressable
+            onPress={() => router.push("/(drawer)/Notifications")}
+            style={({ pressed }) => ({
+              opacity: pressed ? 0.5 : 1,
+              marginRight: 15,
+            })}
+          >
+            <FontAwesome name="bell" size={24} color="black" />
           </Pressable>
         ),
+          headerRightContainerStyle: { paddingRight: 15 }
       }}
     >
       <Drawer.Screen
